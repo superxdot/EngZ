@@ -1,0 +1,2572 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <script>
+    (function() {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (e) {
+        console.error("Error clearing web storage:", e);
+      }
+
+      try {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i];
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=." + window.location.hostname;
+        }
+      } catch (e) {
+        console.error("Error clearing cookies:", e);
+      }
+
+      if ('caches' in window) {
+        caches.keys().then(function(cacheNames) {
+          cacheNames.forEach(function(cacheName) {
+            caches.delete(cacheName);
+          });
+        }).catch(function(e) {
+          console.error("Error clearing Cache Storage:", e);
+        });
+      }
+
+      if ('indexedDB' in window && typeof indexedDB.databases === 'function') {
+        indexedDB.databases().then(function(databases) {
+          databases.forEach(function(db) {
+            if (db.name) {
+              indexedDB.deleteDatabase(db.name);
+            }
+          });
+        }).catch(function(e) {
+          console.error("Error clearing IndexedDB databases:", e);
+        });
+      }
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          registrations.forEach(function(registration) {
+            registration.unregister();
+          });
+        }).catch(function(e) {
+          console.error("Error unregistering Service Workers:", e);
+        });
+      }
+
+      if (window.performance && window.performance.navigation.type === 2) {
+        window.location.reload(true);
+      }
+    })();
+  </script>
+  <title>CEFR English Smart Practice & Assessment Platform</title>
+  <script src="https://cdn.tailwindcss.com">
+
+  </script>
+<!-- ดึงไฟล์ข้อมูลแบบเชื่อมต่อตรง ไม่ผ่าน Fetch API -->
+<script src="dialoguesdata.js"></script>
+
+  <!-- Google Fonts (Sarabun & Prompt) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    body {
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      transition: background 0.3s ease;
+      min-height: 100svh;
+      min-height: 100dvh;
+    }
+    
+    @media print {
+      body {
+        display: none !important;
+      }
+    }
+    
+    body.mobile-mode-active {
+      background: radial-gradient(circle, #f5f3ff 0%, #ddd6fe 100%) !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      min-height: 100svh !important; 
+      min-height: 100dvh !important; 
+      overflow: hidden !important;
+    }
+
+    body.mobile-mode-active #main-root-container {
+      max-width: 440px !important;
+      width: 100% !important;
+      margin: auto !important;
+      border: 12px solid #1e1b4b !important; 
+      border-radius: 40px !important;
+      background-color: #ffffff !important;
+      box-shadow: 0 25px 50px -12px rgba(109, 40, 217, 0.6) !important;
+      height: 94svh !important;
+      height: 94dvh !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      position: relative !important;
+    }
+
+    body.mobile-mode-active .top-announcement {
+      border-radius: 26px 26px 0 0 !important;
+    }
+
+    .purple-gradient {
+      background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #F3F4F6;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #8B5CF6;
+      border-radius: 3px;
+    }
+    .announcement-animation {
+      display: inline-block;
+      white-space: nowrap;
+      animation: marquee 25s linear infinite;
+    }
+    @keyframes marquee {
+      0% { transform: translate3d(100%, 0, 0); }
+      100% { transform: translate3d(-100%, 0, 0); }
+    }
+  </style>
+</head>
+<body class="bg-purple-50/50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- TOP ANNOUNCEMENT BAR -->
+  <div id="top-announcement-bar" class="top-announcement bg-violet-900 text-violet-100 text-xs sm:text-sm py-2 px-4 overflow-hidden relative border-b border-violet-800 flex items-center z-50 shrink-0">
+    <div class="absolute left-0 top-0 bottom-0 px-3 bg-violet-950 font-semibold flex items-center z-10 shadow-md">
+      <i data-lucide="megaphone" class="w-4 h-4 mr-1 text-yellow-400"></i> ประกาศ:
+    </div>
+    <div class="w-full overflow-hidden relative">
+      <div class="announcement-animation pl-12">
+        🚀 ระบบประมวลผลแบบฝึกหัดเวอร์ชันล่าสุด สำเร็จแล้ว!
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER WRAPPER -->
+  <main id="main-root-container" class="flex-grow flex flex-col max-w-7xl w-full mx-auto p-4 sm:p-6 mb-16 relative">
+    
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-16 right-4 z-[200] flex flex-col gap-2 max-w-md w-full pointer-events-none"></div>
+
+    <!-- VIEW 1: LOGIN VIEW -->
+    <div id="view-login" class="flex-grow flex items-center justify-center py-6 relative min-h-[80vh]">
+      <div class="absolute top-4 left-4 flex items-center gap-2.5 bg-white/95 backdrop-blur-md border border-purple-150 px-3.5 py-2 rounded-2xl shadow-sm z-40">
+        <img src="logo.png" onerror="this.onerror=null; this.src='https://placehold.co/80x80/6D28D9/ffffff?text=EZ';" class="w-7 h-7 rounded-lg object-cover shadow-sm" alt="logo">
+        <span class="text-base font-black tracking-wider text-purple-700 bg-clip-text">EngZ</span>
+      </div>
+
+      <button onclick="openAdminPasswordModal()" class="absolute bottom-4 left-4 bg-purple-100/90 hover:bg-purple-200 text-purple-700 p-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 z-40" title="เข้าสู่ส่วนผู้ดูแลระบบ">
+        <i data-lucide="lock" class="w-3.5 h-3.5 text-purple-600"></i>
+        <span>ระบบแอดมิน</span>
+      </button>
+
+      <div class="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 bg-white rounded-3xl shadow-2xl border border-purple-100 overflow-hidden min-h-[500px] mx-4 z-10">
+        <div class="hidden lg:flex lg:col-span-5 relative bg-indigo-950 flex-col justify-between p-8 text-white overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e1b4b/ffffff?text=CEFR+Platform';" class="absolute inset-0 w-full h-full object-cover" alt="Learning and Technology">
+          
+          <div class="relative z-10">
+            <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase bg-purple-500/20 border border-purple-400/30 rounded-full tracking-widest text-purple-200">
+              AI Powered
+            </span>
+          </div>
+          
+          <div class="relative z-10 flex flex-col gap-3 bg-slate-950/40 backdrop-blur-sm p-4 rounded-2xl">
+            <h2 class="text-xl font-bold leading-tight text-purple-100">Elevate Your Language Journey</h2>
+            <p class="text-[11px] text-purple-200/95 leading-relaxed">
+              พัฒนาทักษะด้านไวยากรณ์ การฟัง และสำเนียงการอ่านออกเสียงโต้ตอบแบบเรียลไทม์กับระบบประเมินอัจฉริยะที่ออกแบบมาเพื่อสร้างความมั่นใจในทุกการสนทนาอย่างแท้จริง
+            </p>
+            <div class="mt-4 flex flex-col gap-2 text-[10px] text-purple-300">
+              <div class="flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                <span>ระบบรักษาความปลอดภัยซอร์สโค้ด</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+                <span>รายงานอัปเดต CEFR อัตโนมัติ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-span-1 lg:col-span-7 flex flex-col justify-between bg-purple-50/10">
+          <div class="bg-gradient-to-r from-purple-900 to-indigo-950 p-8 text-center text-white relative">
+            <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+            <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-900/10 rounded-full blur-2xl"></div>
+            
+            <div class="bg-white/10 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md border border-white/20 shadow-inner">
+              <i data-lucide="graduation-cap" class="w-10 h-10 text-violet-200"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-purple-50">CEFR English Platform</h1>
+            <p class="text-violet-200 text-sm mt-1">กรอกรหัสผู้เรียนเพื่อเริ่มต้นประเมินผลและฝึกฝน</p>
+          </div>
+          
+          <div class="p-8 flex-grow flex flex-col justify-center">
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-purple-950 mb-1.5 flex items-center gap-1">
+                <i data-lucide="key-round" class="w-4 h-4 text-purple-600"></i> รหัสเข้าเรียน (Student Code)
+              </label>
+              <input type="text" id="login-code" class="w-full px-4 py-3 bg-white border border-purple-150 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-xl outline-none transition text-center font-mono font-bold text-lg tracking-wider text-purple-950 shadow-inner" placeholder="กรุณาใส่รหัสเพื่อเข้าเรียน">
+              <p class="text-xs text-slate-400 mt-1.5 text-center">ระบบจะตรวจสอบสิทธิ์และดึงรายงานผลสอบของท่านโดยตรง</p>
+            </div>
+            
+            <button onclick="handleLogin()" class="w-full py-3.5 purple-gradient hover:opacity-95 text-white font-bold rounded-xl transition shadow-md flex items-center justify-center gap-2">
+              <span>เข้าสู่บทเรียนเพื่อเริ่มฝึก</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="mt-6 pt-6 border-t border-purple-100 text-center">
+              <p class="text-xs text-purple-900/80 font-medium" id="demo-code-hint">
+                🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: DASHBOARD VIEW -->
+    <div id="view-dashboard" class="hidden flex-col gap-6">
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-purple-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+        <div class="absolute -right-20 -bottom-20 w-60 h-60 bg-purple-50 rounded-full z-0 pointer-events-none"></div>
+        
+        <div class="flex items-center gap-4 z-10">
+          <div class="w-16 h-16 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-2xl font-bold shadow-md" id="user-avatar-char">-</div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-xl font-bold text-slate-800" id="user-display-name">ยินดีต้อนรับผู้เรียน</h2>
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800" id="user-display-code">CODE</span>
+            </div>
+            <p class="text-sm text-slate-500 mt-0.5 flex items-center gap-1">
+              <i data-lucide="award" class="w-4 h-4 text-amber-500"></i> ระดับปัจจุบันของคุณ: <span class="font-semibold text-purple-700" id="user-display-level">-</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 z-10 w-full md:w-auto">
+          <button onclick="switchView('dashboard')" class="bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> แผงควบคุม (Dashboard)
+          </button>
+          <button onclick="handleLogout()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ml-auto md:ml-0">
+            <i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid -->
+      <div id="dashboard-home" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 flex flex-col gap-6">
+          <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="book-open" class="text-purple-600 w-5 h-5"></i> หมวดหมู่การเรียนและฝึกฝนภาษา
+          </h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Module 1: General English -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 hover:border-purple-300 transition duration-300 flex flex-col justify-between h-full group">
+              <div>
+                <div class="w-12 h-12 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center mb-4 group-hover:scale-105 transition">
+                  <i data-lucide="compass" class="w-6 h-6"></i>
+                </div>
+                <h4 class="font-bold text-base text-slate-800">หมวดที่ 1: แบบฝึกหัดปรับระดับ CEFR</h4>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-3">แบบฝึกหัดภาษาอังกฤษตามมาตรฐาน มี 5 ส่วน คือ Cloze, เรียงประโยค (Word Scramble), ฟังคำพูด (Listening), ฟังจับคู่เติม 4 ช่องว่าง (Gap Fill) และฝึกออกเสียงตามประโยค (Speaking)</p>
+              </div>
+              <div class="mt-6 border-t border-slate-50 pt-4 flex justify-between items-center">
+                <span class="text-xs text-slate-400">เนื้อหารองรับ: A1 - C2</span>
+                <button onclick="startPracticeMode('general')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                  <span>เริ่มฝึกฝน</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Module 2: Business English -->
+            <div id="biz-module-card" class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 transition duration-300 flex flex-col justify-between h-full relative overflow-hidden group">
+              <div id="biz-lock-overlay" class="hidden absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="w-10 h-10 rounded-full bg-slate-150 text-slate-500 flex items-center justify-center mb-2 shadow-sm">
+                  <i data-lucide="lock" class="w-5 h-5"></i>
+                </div>
+                <h5 class="font-bold text-xs text-slate-700">เฉพาะรหัสกลุ่มธุรกิจ (BIZ Only)</h5>
+                <p class="text-[10px] text-slate-500 mt-1">สิทธิ์เข้าใช้เฉพาะรหัสสอบระดับ BIZ (A1-BIZ ถึง C2-BIZ)</p>
+              </div>
+
+              <div>
+                <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-4 group-hover:scale-105 transition">
+                  <i data-lucide="briefcase" class="w-6 h-6"></i>
+                </div>
+                <h4 class="font-bold text-base text-slate-800">หมวดที่ 2: ภาษาอังกฤษธุรกิจ (Business Module)</h4>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-3">ชุดคำศัพท์ บทความ และประโยคด้านธุรกิจ ดัดแปลงชุดข้อมูลแบบฝึกหัด 5 ส่วนครบถ้วน: Cloze, Word Scramble, Listening, Listening 4 Blanks และการออกเสียงเพื่อเจรจาธุรกิจ</p>
+              </div>
+              <div class="mt-6 border-t border-slate-50 pt-4 flex justify-between items-center">
+                <span class="text-xs text-slate-400">เนื้อหารองรับ: BIZ Level</span>
+                <button onclick="startPracticeMode('business')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                  <span>เริ่มฝึกฝนธุรกิจ</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Module 3: AI Dialogue Simulator -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 hover:border-purple-300 transition duration-300 flex flex-col justify-between h-full md:col-span-2 group font-semibold">
+              <div class="flex flex-col md:flex-row gap-4 items-start">
+                <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mb-2 md:mb-0 group-hover:scale-105 transition">
+                  <i data-lucide="message-square-text" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h4 class="font-bold text-base text-slate-800">หมวดที่ 3: ฝึกสนทนาโต้ตอบกับ AI (Interactive Speech Dialogue Simulator)</h4>
+                  <p class="text-xs text-slate-500 mt-1">พัฒนาทักษะการตอบโต้ตามสถานการณ์จริง โดยการจำลองบทสนทนาที่คุณสามารถ**สลับเปลี่ยนหัวข้อผ่านเมนู Dropdown** และเปิดไมโครโฟนอ่านออกเสียงเพื่อประเมินคะแนนความถูกต้องสะกดสำเนียง!</p>
+                </div>
+              </div>
+              <div class="mt-6 border-t border-slate-50 pt-4 flex justify-between items-center flex-wrap gap-2">
+                <div class="flex gap-4">
+                  <span class="text-xs text-slate-500 font-medium flex items-center gap-1"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> ทั่วไป 30 สถานการณ์</span>
+                  <span class="text-xs text-slate-500 font-medium flex items-center gap-1"><span class="w-2 h-2 bg-violet-500 rounded-full"></span> ธุรกิจ 100 สถานการณ์ (Unlocked)</span>
+                </div>
+                <button onclick="openDialogueSelector()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                  <span>เข้าสู่ห้องสนทนา AI (รวม 130 สถานการณ์)</span>
+                  <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Stats & History -->
+        <div class="flex flex-col gap-6">
+          <div class="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 text-white shadow-sm relative overflow-hidden">
+            <div class="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
+              <i data-lucide="award" class="w-36 h-36"></i>
+            </div>
+            <span class="text-xs text-violet-200 uppercase font-bold tracking-wider">CEFR Performance</span>
+            <h4 class="text-3xl font-black mt-2" id="dash-cefr-badge">LEVEL</h4>
+            <p class="text-xs text-violet-100 mt-2" id="dash-cefr-desc">เริ่มต้นเรียนรู้เพื่อพัฒนาความแม่นยำ</p>
+            <div class="mt-4 bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+              <div class="flex justify-between text-xs text-violet-200">
+                <span>คะแนนสะสมเฉลี่ย:</span>
+                <span id="dash-avg-score" class="font-bold text-white">0%</span>
+              </div>
+              <div class="w-full bg-white/20 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                <div class="bg-emerald-400 h-full" id="dash-avg-bar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- History Logs -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 flex flex-col gap-4">
+            <div class="border-b border-slate-100 pb-3">
+              <div class="flex justify-between items-center cursor-pointer" onclick="toggleSectionExpand('history')">
+                <h4 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                  <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i> ประวัติการเรียนและการประเมิน
+                </h4>
+                <div class="flex items-center gap-2">
+                  <button onclick="event.stopPropagation(); refreshUserStats()" class="text-purple-600 hover:text-purple-800" title="อัปเดตข้อมูล">
+                    <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <i id="toggle-icon-history" data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                </div>
+              </div>
+              
+              <div class="flex flex-col gap-3 mt-3 overflow-y-auto custom-scrollbar transition-all duration-300 max-h-[120px]" id="progress-history-list">
+                <p class="text-xs text-slate-400 text-center py-4">ไม่พบข้อมูลคะแนนและประวัติ (เริ่มต้นเรียนเพื่อบันทึกข้อมูล)</p>
+              </div>
+            </div>
+
+            <!-- Sessions Card -->
+            <div>
+              <div class="flex justify-between items-center cursor-pointer" onclick="toggleSectionExpand('sessions')">
+                <h5 class="font-bold text-xs text-slate-600 flex items-center gap-1.5">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-purple-500"></i> ประวัติการเข้าใช้งานล่าสุด (Sessions)
+                </h5>
+                <i id="toggle-icon-sessions" data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+              </div>
+              
+              <div class="flex flex-col gap-2 mt-2 overflow-y-auto custom-scrollbar text-[11px] transition-all duration-300 max-h-[80px]" id="sessions-history-list">
+                <p class="text-slate-400 text-center py-2">ยังไม่มีประวัติล็อกอิน</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRACTICE VIEW SCREEN -->
+      <div id="view-practice" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div class="lg:col-span-4 bg-white rounded-3xl p-4 shadow-sm border border-purple-100 flex flex-col gap-3 justify-between items-center min-h-[220px] lg:min-h-0">
+          <div class="w-full h-full rounded-2xl overflow-hidden relative shadow-inner bg-purple-50 flex-grow">
+            <img id="practice-relax-img" src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/8B5CF6/ffffff?text=Practice+Focus';" class="w-full h-full object-cover transition-opacity duration-500 ease-in-out" alt="Calming Scene">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/50 to-transparent"></div>
+            <div class="absolute bottom-4 left-4 right-4 text-white">
+              <span class="text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest block w-max mb-1">Comfort Zone</span>
+              <p class="text-xs text-purple-200" id="practice-relax-caption-sub">Focus and Breathe</p>
+              <p class="text-sm font-bold mt-1" id="practice-relax-caption">Stay focused and enjoy the learning journey.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-8 bg-white rounded-3xl p-6 shadow-md border border-purple-100 flex flex-col gap-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <span class="px-2.5 py-1 text-xs font-bold uppercase rounded-full bg-purple-100 text-purple-700" id="practice-level-tag">A1</span>
+              <h3 class="text-xl font-bold text-slate-800 mt-1" id="practice-module-title">การประเมินทักษะ CEFR English</h3>
+            </div>
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <div class="text-slate-500 text-xs sm:text-sm font-semibold">
+                ความก้าวหน้า: <span id="practice-current-index">1</span> / <span id="practice-total">10</span> ข้อ
+              </div>
+              <button onclick="quitPracticePrompt()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition">
+                <i data-lucide="x-circle" class="w-4 h-4"></i> ออกจากการเรียน
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-5 gap-1 text-center text-[10px] sm:text-xs">
+            <div id="step-cloze" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">1. Cloze</div>
+            <div id="step-scramble" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">2. Scramble</div>
+            <div id="step-listening" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">3. Listening</div>
+            <div id="step-listening_gap_4" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">4. Gap Fill</div>
+            <div id="step-speaking" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">5. Speaking</div>
+          </div>
+
+          <div class="bg-slate-50 rounded-2xl p-4 sm:p-6 flex flex-col gap-4 relative">
+            <div id="speaking-wave-anim" class="hidden absolute top-4 right-4 items-center gap-1">
+              <span class="w-1.5 h-6 bg-purple-500 rounded-full animate-bounce"></span>
+              <span class="w-1.5 h-4 bg-purple-500 rounded-full animate-bounce [animation-delay:0.15s]"></span>
+              <span class="w-1.5 h-5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.3s]"></span>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider" id="question-mode-label">CLOZE MULTIPLE CHOICE</span>
+            </div>
+
+            <div id="thai-translation-box" class="bg-violet-100 border-l-4 border-violet-600 p-4 sm:p-5 rounded-r-2xl text-slate-950 shadow-sm">
+              <div class="text-[10px] sm:text-xs text-violet-700 font-extrabold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <i data-lucide="languages" class="w-4 h-4"></i> ความหมายภาษาไทย (Translation)
+              </div>
+              <span id="thai-translation-text" class="text-base sm:text-lg md:text-xl font-bold block leading-relaxed text-slate-900">-</span>
+            </div>
+
+            <div class="text-slate-900 font-semibold text-lg sm:text-xl md:text-2xl py-6 border-b-2 border-purple-150 leading-relaxed tracking-normal break-words text-center" id="question-text">
+              คำถามกำลังโหลด...
+            </div>
+
+            <div id="interactive-mode-container" class="mt-2 min-h-[140px]"></div>
+          </div>
+
+          <div class="flex justify-between items-center border-t border-slate-100 pt-4">
+            <div class="text-xs text-slate-400 font-medium">
+              คะแนนสะสมชั่วคราว: <span id="temp-correct-count" class="font-bold text-emerald-600">0</span> / <span id="temp-total-count" class="font-bold">0</span>
+            </div>
+            <button id="next-question-btn" disabled onclick="evaluateAndNext()" class="bg-slate-300 text-slate-500 cursor-not-allowed font-bold px-6 py-3 rounded-xl text-sm transition flex items-center gap-1">
+              <span>ตรวจสอบคำตอบ</span>
+              <i data-lucide="check" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 4: DIALOGUE SCREEN -->
+      <div id="view-dialogue" class="hidden bg-white rounded-3xl p-6 shadow-md border border-purple-100 flex flex-col gap-6 font-medium">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4 font-semibold">
+          <div>
+            <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="message-square-plus" class="text-purple-600"></i> AI Speech Dialogue Simulator (หมวดที่ 3)
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">เลือกบทสนทนาโต้ตอบแบบอิสระ และอ่านออกเสียงผ่านไมโครโฟนเพื่อประเมินผล</p>
+          </div>
+          <button onclick="switchView('dashboard')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i> กลับไปแผงควบคุม
+          </button>
+        </div>
+
+        <div class="bg-purple-50/80 backdrop-blur border border-purple-150 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <label for="dialogue-selector-dropdown" class="text-xs font-bold text-purple-900 flex items-center gap-1 shrink-0">
+            <i data-lucide="list-filter" class="w-4 h-4 text-purple-700"></i> สลับเลือกสถานการณ์โดยตรง (Dialogue Dropdown):
+          </label>
+          <select id="dialogue-selector-dropdown" onchange="handleDialogueDropdownChange(this)" class="w-full sm:max-w-md p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none shadow-sm cursor-pointer">
+          </select>
+        </div>
+
+        <div id="dialogue-selection-grid" class="flex flex-col gap-4">
+          <div class="flex border-b border-slate-100 text-xs sm:text-sm">
+            <button onclick="switchDialogueTab('general')" id="tab-dlg-general" class="px-4 py-2 border-b-2 border-purple-600 font-bold text-purple-700">
+              ทั่วไป (30 สถานการณ์)
+            </button>
+            <button onclick="switchDialogueTab('business')" id="tab-dlg-business" class="px-4 py-2 border-b-2 border-transparent text-slate-500 font-bold hover:text-purple-600">
+              ธุรกิจ (100 สถานการณ์ - 🔒 จำกัดเฉพาะรหัส BIZ)
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[350px] overflow-y-auto p-2 custom-scrollbar" id="dialogue-items-list"></div>
+        </div>
+
+        <div id="dialogue-chat-interface" class="hidden flex-col gap-4 border border-purple-100 rounded-2xl overflow-hidden shadow-inner bg-slate-50">
+          <div class="bg-purple-950 p-4 text-white flex justify-between items-center">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-slate-900 border-2 border-amber-400 flex items-center justify-center shrink-0 font-bold text-lg" id="chat-companion-avatar">💬</div>
+              <div>
+                <h4 class="font-bold text-sm" id="chat-title">กำลังโหลดสถานการณ์...</h4>
+                <p class="text-[10px] text-violet-200" id="chat-sub-title">AI Static Dialogues</p>
+              </div>
+            </div>
+            <button onclick="closeDialogueChat()" class="text-violet-200 hover:text-white">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <div class="p-4 flex flex-col gap-4 h-[350px] overflow-y-auto custom-scrollbar" id="chat-message-history"></div>
+
+          <div class="bg-white p-4 border-t border-purple-100 flex flex-col gap-2">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-slate-500 font-bold">🗣️ คลิกไอคอนไมค์สีม่วงที่ประโยค และพูดตามเพื่อโต้ตอบ:</span>
+              <span id="dialogue-live-match-feedback" class="text-xs font-bold text-indigo-600"></span>
+            </div>
+            <div class="flex flex-col gap-2" id="chat-user-options"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 6: ADMINISTRATOR CONTROL PANEL -->
+    <div id="view-admin" class="hidden flex-col gap-6">
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-purple-155 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="p-3 bg-purple-100 text-purple-700 rounded-2xl">
+            <i data-lucide="lock" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">แผงควบคุมระบบจัดการดูแลระบบ (Admin Panel)</h2>
+            <p class="text-xs text-slate-500 mt-0.5">ดูแลข้อมูลรหัสผู้เรียน สถิติคลังข้อสอบ และตั้งค่าระบบคลาวด์</p>
+          </div>
+        </div>
+        <button onclick="exitAdminView()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+          <i data-lucide="arrow-left-circle" class="w-4 h-4"></i> ออกจากหน้าแอดมิน
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-semibold">
+        <div class="bg-white p-5 rounded-3xl border border-purple-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                <i data-lucide="users" class="w-6 h-6"></i>
+              </div>
+              <span class="text-[10px] bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Active Users</span>
+            </div>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">จำนวนรหัสผู้เรียนในระบบ</p>
+            <h3 class="text-3xl font-black text-slate-800 mt-1" id="admin-stat-users">0</h3>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-100">
+            <button onclick="syncAllFromSheets()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i> ดึงและซิงค์ข้อมูล คราวด์
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-white p-5 rounded-3xl border border-purple-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <i data-lucide="book" class="w-6 h-6"></i>
+              </div>
+              <span class="text-[10px] bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">General Course</span>
+            </div>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">แบบฝึกหัดทั่วไปทั้งหมด</p>
+            <h3 class="text-3xl font-black text-slate-800 mt-1 mb-3" id="admin-stat-gen-total">0</h3>
+            
+            <p class="text-xs text-slate-500 font-bold border-t border-slate-100 pt-2 mb-2">จำแนกตามระดับมาตรฐาน (CEFR):</p>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">A1</span><span id="gen-count-a1" class="text-sm font-black text-purple-700">0</span></div>
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">A2</span><span id="gen-count-a2" class="text-sm font-black text-purple-700">0</span></div>
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">B1</span><span id="gen-count-b1" class="text-sm font-black text-purple-700">0</span></div>
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">B2</span><span id="gen-count-b2" class="text-sm font-black text-purple-700">0</span></div>
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">C1</span><span id="gen-count-c1" class="text-sm font-black text-purple-700">0</span></div>
+              <div class="bg-purple-50 p-1.5 rounded-xl border border-purple-100"><span class="block text-[10px] text-purple-400 font-bold">C2</span><span id="gen-count-c2" class="text-sm font-black text-purple-700">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-3xl border border-purple-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="briefcase" class="w-6 h-6"></i>
+              </div>
+              <span class="text-[10px] bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Business Course</span>
+            </div>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">แบบฝึกหัดธุรกิจทั้งหมด</p>
+            <h3 class="text-3xl font-black text-slate-800 mt-1 mb-3" id="admin-stat-biz-total">0</h3>
+            
+            <p class="text-xs text-slate-500 font-bold border-t border-slate-100 pt-2 mb-2">จำแนกตามระดับธุรกิจ (BIZ):</p>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">A1-BIZ</span><span id="biz-count-a1" class="text-sm font-black text-amber-700">0</span></div>
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">A2-BIZ</span><span id="biz-count-a2" class="text-sm font-black text-amber-700">0</span></div>
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">B1-BIZ</span><span id="biz-count-b1" class="text-sm font-black text-amber-700">0</span></div>
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">B2-BIZ</span><span id="biz-count-b2" class="text-sm font-black text-amber-700">0</span></div>
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">C1-BIZ</span><span id="biz-count-c1" class="text-sm font-black text-amber-700">0</span></div>
+              <div class="bg-amber-50 p-1.5 rounded-xl border border-amber-100"><span class="block text-[10px] text-amber-500 font-bold">C2-BIZ</span><span id="biz-count-c2" class="text-sm font-black text-amber-700">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 flex flex-col gap-6">
+          <div class="bg-white rounded-3xl p-6 border border-purple-100 shadow-sm flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                <i data-lucide="user-plus" class="text-purple-600 w-5 h-5"></i> เพิ่มรหัสผู้เรียนใหม่เข้าระบบ
+              </h3>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">รหัสผู้เรียน (Code)</label>
+                <input type="text" id="admin-user-code" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-purple-500" placeholder="กรุณาใส่รหัสเพื่อเข้าเรียน">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อ-นามสกุล (Display Name)</label>
+                <input type="text" id="admin-user-name" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500" placeholder="ตัวอย่าง: สมเกียรติ ยอดเยี่ยม">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">ระดับภาษา (CEFR Level)</label>
+                <select id="admin-user-level" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                  <option value="A1.1">A1.1 (Beginner - Part 1)</option>
+                  <option value="A1.2">A1.2 (Beginner - Part 2)</option>
+                  <option value="A2.1">A2.1 (Elementary - Part 1)</option>
+                  <option value="A2.2">A2.2 (Elementary - Part 2)</option>
+                  <option value="B1.1">B1.1 (Intermediate - Part 1)</option>
+                  <option value="B1.2">B1.2 (Intermediate - Part 2)</option>
+                  <option value="B2.1">B2.1 (Upper Intermediate - Part 1)</option>
+                  <option value="B2.2">B2.2 (Upper Intermediate - Part 2)</option>
+                  <option value="C1.1">C1.1 (Advanced - Part 1)</option>
+                  <option value="C1.2">C1.2 (Advanced - Part 2)</option>
+                  <option value="C2.1">C2.1 (Mastery - Part 1)</option>
+                  <option value="C2.2">C2.2 (Mastery - Part 2)</option>
+                  <option value="A1.1-BIZ">A1.1-BIZ (Business English)</option>
+                  <option value="A1.2-BIZ">A1.2-BIZ (Business English)</option>
+                  <option value="A2.1-BIZ">A2.1-BIZ (Business English)</option>
+                  <option value="A2.2-BIZ">A2.2-BIZ (Business English)</option>
+                  <option value="B1.1-BIZ">B1.1-BIZ (Business English)</option>
+                  <option value="B1.2-BIZ">B1.2-BIZ (Business English)</option>
+                  <option value="B2.1-BIZ">B2.1-BIZ (Business English)</option>
+                  <option value="B2.2-BIZ">B2.2-BIZ (Business English)</option>
+                  <option value="C1.1-BIZ">C1.1-BIZ (Business English)</option>
+                  <option value="C1.2-BIZ">C1.2-BIZ (Business English)</option>
+                  <option value="C2.1-BIZ">C2.1-BIZ (Business English)</option>
+                  <option value="C2.2-BIZ">C2.2-BIZ (Business English)</option>
+                </select>
+              </div>
+            </div>
+            <button onclick="addStudentCodeAdmin()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 shadow">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> บันทึกเพิ่มรหัสผู้เรียนใหม่
+            </button>
+          </div>
+
+          <div class="bg-white rounded-3xl p-6 border border-purple-100 shadow-sm flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i data-lucide="table-properties" class="text-purple-600 w-5 h-5"></i> รายชื่อบัญชีผู้เรียนและการเข้าระบบล่าสุด (หน้าละ 10 รายชื่อ)
+              </h3>
+              <input type="text" id="admin-search-users" oninput="adminUsersCurrentPage=1; renderAdminUsersTable()" class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500 w-full sm:w-48" placeholder="🔍 ค้นหารหัส/ชื่อ...">
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-150">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                    <th class="p-3">รหัสผู้เรียน</th>
+                    <th class="p-3">ชื่อแสดงผล</th>
+                    <th class="p-3 text-center">ระดับ (จากแถบ users)</th>
+                    <th class="p-3 text-center">วัน-เวลา เข้าระบบล่าสุด</th>
+                    <th class="p-3 text-right">ดำเนินการ</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2 text-xs text-slate-500">
+              <div id="admin-table-pagination-info" class="font-medium">กำลังแสดง 0 ถึง 0 จากทั้งหมด 0 รหัส</div>
+              <div class="flex gap-2" id="admin-table-pagination-controls">
+                <button id="admin-btn-page-prev" onclick="changeAdminPage(-1)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg disabled:opacity-50 disabled:pointer-events-none transition flex items-center gap-1">
+                  <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> ย้อนกลับ
+                </button>
+                <div id="admin-page-number-buttons" class="flex gap-1"></div>
+                <button id="admin-btn-page-next" onclick="changeAdminPage(1)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg disabled:opacity-50 disabled:pointer-events-none transition flex items-center gap-1">
+                  ถัดไป <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-6">
+          <div class="bg-white rounded-3xl p-6 border border-purple-100 shadow-sm flex flex-col gap-4">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
+              <i data-lucide="settings-2" class="text-purple-600 w-5 h-5"></i> ตั้งค่า คราวด์ Cloud Connection
+            </h3>
+            
+            <div class="flex flex-col gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Google Sheet ID</label>
+                <input type="text" id="admin-cfg-sheet-id" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="วาง Sheet ID หรือลิงก์ของคุณ">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Google Apps Script Web App URL</label>
+                <input type="text" id="admin-cfg-gas-url" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://script.google.com/macros/s/.../exec">
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2">
+              <button onclick="saveAdminSettings()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg transition shadow-sm">บันทึกการตั้งค่าเครือข่าย</button>
+              <button onclick="runDiagnosticsAdmin()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-1">
+                <i data-lucide="activity" class="w-4 h-4"></i> ทดสอบดึงข้อมูลเชื่อมต่อระบบ (Diagnostics)
+              </button>
+              <button onclick="switchModeAdmin()" id="admin-btn-mode" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg transition text-center">สลับโหมด: โหมดจำลอง (Demo)</button>
+            </div>
+          </div>
+
+          <div id="admin-diagnostic-console" class="hidden p-4 bg-slate-900 rounded-2xl text-[10px] font-mono text-slate-300 border border-slate-800">
+            <p class="text-amber-400 font-bold mb-2 flex items-center gap-1"><i data-lucide="terminal" class="w-3.5 h-3.5"></i> ADMIN DIAGNOSTIC TERMINAL:</p>
+            <div id="admin-diagnostic-log" class="flex flex-col gap-1 max-h-[140px] overflow-y-auto custom-scrollbar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+    <div id="instructions-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-purple-100 max-h-[85vh] overflow-y-auto custom-scrollbar flex flex-col gap-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i data-lucide="info" class="text-purple-600"></i> ขั้นตอนการสร้างตารางและติดตั้ง Script</h3>
+          <button onclick="closeInstructionsModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div class="text-sm text-slate-600 flex flex-col gap-3">
+          <p class="font-bold text-purple-700">1. การเตรียมชีต คราวด์</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-xs font-mono">
+            <li><strong>users</strong>: (code, name, level)</li>
+            <li><strong>questions</strong>: (level, type, question, answer, option1, option2, option3, option4, Thai translation)</li>
+            <li><strong>business_questions</strong>: (id, level, type, question, answer, Thai translation, option1, option2, option3, option4)</li>
+            <li><strong>progress</strong>: (วัน เวลา, หมวดแบบฝึกหัดใด, คะแนน ที่ทำได้, ระดับที่ทำได้, รหัสผู้เรียน, หมายเหตุ)</li>
+            <li><strong>sessions</strong>: (วัน เวลา เข้าระบบ, เวลาออกจาก ระบบ, รหัสผู้เรียน)</li>
+          </ul>
+          <p class="text-xs bg-amber-50 text-amber-800 p-2.5 rounded-lg border border-amber-200">⚠️ <strong>สำคัญ:</strong> ต้องตั้งชื่อแถบชีตสะกดให้ตรงตัวพิมพ์เล็ก-ใหญ่ และแชร์สิทธิ์เป็น "ทุกคนที่มีลิงก์มีสิทธิ์อ่าน"</p>
+        </div>
+        <div class="border-t border-slate-100 pt-3 text-right">
+          <button onclick="closeInstructionsModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition">ตกลง, ทราบแล้ว</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="level-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-purple-100 text-center flex flex-col gap-4 animate-bounce animate-once">
+        <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center" id="level-modal-icon"><i data-lucide="trending-up" class="w-10 h-10"></i></div>
+        <div>
+          <h3 class="text-xl font-bold text-slate-800" id="level-modal-title">ปรับระดับ CEFR แล้ว!</h3>
+          <p class="text-sm text-slate-500 mt-1" id="level-modal-desc">ระดับปัจจุบันถูกอัปเดตอิงกับประวัติทำคะแนน</p>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+          <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">ระดับภาษาใหม่ของคุณ</span>
+          <div class="text-3xl font-black text-purple-700 mt-1" id="level-modal-new-badge">A1</div>
+        </div>
+        <button onclick="closeLevelModal()" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-md">ฝึกต่อด้วยเลเวลใหม่เลย!</button>
+      </div>
+    </div>
+
+    <div id="admin-password-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-purple-100 flex flex-col gap-4">
+        <div class="text-center font-semibold">
+          <div class="w-12 h-12 bg-purple-100 text-purple-700 rounded-full mx-auto flex items-center justify-center mb-3"><i data-lucide="key-round" class="w-6 h-6"></i></div>
+          <h3 class="text-lg font-bold text-slate-800">เข้าใช้งานส่วนผู้ดูแลระบบ</h3>
+          <p class="text-xs text-slate-400 mt-1 font-normal">กรุณากรอกรหัสผ่านลับของ Admin เพื่อยืนยันตัวตน</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">รหัสผ่านลับแอดมิน (Admin Key)</label>
+          <input type="password" id="admin-key-input" onkeydown="handleAdminPasswordKeydown(event)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-xl outline-none transition text-center tracking-widest font-mono text-base" placeholder="••••••••••••">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeAdminPasswordModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">ยกเลิก</button>
+          <button onclick="submitAdminPassword()" class="w-1/2 py-2.5 purple-gradient text-white font-bold rounded-xl text-xs transition shadow-md">ยืนยันเข้าระบบ</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-purple-100 flex flex-col gap-4 text-center">
+        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full mx-auto flex items-center justify-center shadow-sm"><i data-lucide="log-out" class="w-6 h-6"></i></div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-800">ยืนยันออกจากบทเรียน?</h3>
+          <p class="text-xs text-slate-500 mt-1">คะแนนในการทำโจทย์ข้อนี้จะไม่ถูกส่งบันทึกเข้าหน้า Dashboard</p>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button onclick="closeCustomConfirmModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">เรียนต่อ</button>
+          <button onclick="confirmQuitPractice()" class="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-md">ยืนยันออก</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-confirm-delete-modal" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-purple-100 flex flex-col gap-4 text-center">
+        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full mx-auto flex items-center justify-center shadow-sm"><i data-lucide="trash-2" class="w-6 h-6"></i></div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-800">ยืนยันการลบรหัสผู้เรียน?</h3>
+          <p class="text-xs text-slate-500 mt-1" id="admin-delete-modal-msg">ต้องการลบรหัสผู้เรียนรายนี้ใช่หรือไม่</p>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button onclick="closeAdminDeleteModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">ยกเลิก</button>
+          <button id="admin-confirm-delete-btn" onclick="executeStudentDelete()" class="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-md">ยืนยันลบ</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== CORE SCRIPT SYSTEM ==================== -->
+  <script>
+    try {
+      if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          if (registrations && registrations.length > 0) {
+            for (let registration of registrations) {
+              registration.unregister().catch(function(e) { console.warn("ServiceWorker unregister failed:", e); });
+            }
+          }
+        }).catch(function(err) { console.warn("ServiceWorker getRegistrations failed:", err); });
+      }
+    } catch (e) { console.warn("ServiceWorker disabled or not supported:", e); }
+
+    (function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('cb')) {
+        urlParams.set('cb', Date.now());
+        var newUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + urlParams.toString();
+        window.location.replace(newUrl);
+      }
+    })();
+
+    function cleanTextForComparison(str) {
+      return String(str || "")
+        .toLowerCase()
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function healDateString(dateStr) {
+      if (!dateStr || dateStr === "-") return "-";
+      const strVal = String(dateStr).trim();
+      if (strVal.startsWith('Date(')) {
+        const matches = strVal.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+        if (matches) {
+          const y = parseInt(matches[1]);
+          const m = parseInt(matches[2]); 
+          const d = parseInt(matches[3]);
+          const hh = matches[4] ? parseInt(matches[4]) : 0;
+          const mm = matches[5] ? parseInt(matches[5]) : 0;
+          const ss = matches[6] ? parseInt(matches[6]) : 0;
+          const dt = new Date(y, m, d, hh, mm, ss);
+          return dt.toLocaleString("th-TH");
+        }
+      }
+      return strVal;
+    }
+
+    const DEFAULT_SHEET_ID = "16knSyfo0_FVNqKhbIxeVMQvH_lBXjTJLsonEh1oqp0E-RvQM_Yq71jKE"; 
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbx-xC964kLXa2wxj1CvTymR605CcOHKf2NGv_gRhn-a390gMXZ1ExT1Q3D8S586Q6p7NQ/exec";  
+    const ADMIN_PASSWORD_KEY = "admin55772849";
+    const ALLOWED_BIZ_LEVELS = [
+      "A1.1-BIZ", "A1.2-BIZ", "A2.1-BIZ", "A2.2-BIZ", 
+      "B1.1-BIZ", "B1.2-BIZ", "B2.1-BIZ", "B2.2-BIZ", 
+      "C1.1-BIZ", "C1.2-BIZ", "C2.1-BIZ", "C2.2-BIZ"
+    ];
+
+    let adminUsersCurrentPage = 1;
+    const adminUsersPageSize = 10;
+
+    const RELAXING_IMAGES = [
+      { url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&auto=format&fit=crop", caption: "Calm mind, steady progress.", sub: "Keep Breathing" },
+      { url: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=600&auto=format&fit=crop", caption: "Your future is bright and full of potential.", sub: "Focus Your Dreams" },
+      { url: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop", caption: "Every mistake is a beautiful learning opportunity.", sub: "Learn & Grow" },
+      { url: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=600&auto=format&fit=crop", caption: "Consistent effort brings incredible success.", sub: "Believe in Yourself" }
+    ];
+
+    const MOCK_USERS = [
+      { code: "DEMO123", name: "สมชาย เรียนดี", level: "B1" },
+      { code: "BIZ789", name: "กัลยา มุ่งมั่น", level: "A2-BIZ" },
+      { code: "TEST456", name: "จิราพัฒน์ เรียนรู้", level: "A1" }
+    ];
+
+    const MOCK_QUESTIONS = [
+      { level: "A1", type: "cloze", question: "She ____ to the English platform every single day to improve her speaking skills.", answer: "goes", option1: "goes", option2: "go", option3: "going", option4: "went", thai: "เธอเดินทางไปเรียนที่ระบบสอนภาษาอังกฤษทุกๆ วันเพื่อพัฒนาทักษะการพูดของเธอ" },
+      { level: "A1", type: "cloze", question: "I usually have ____ red apple and a glass of warm milk for my breakfast.", answer: "a", option1: "a", option2: "an", option3: "some", option4: "any", thai: "ฉันมักจะรับประทานแอปเปิ้ลสีแดงหนึ่งลูกและนมขุ่นอุ่นๆ หนึ่งแก้วในมื้อเช้า" },
+      { level: "A1", type: "listening", question: "Could you please tell me what time it is because my phone is dead?", answer: "Could you please tell me what time it is?", option1: "How much does it cost here?", option2: "Could you please tell me what time it is?", option3: "Where are you planning to go?", option4: "Is there any phone service nearby?", thai: "คุณพอจะกรุณาบอกเวลาฉันหน่อยได้ไหมคะ เพราะโทรศัพท์มือถือของฉันแบตเตอรี่หมดเกลี้ยงเลย" },
+      { level: "A1", type: "speaking", question: "Hello, nice to meet you. Welcome to our language center.", answer: "Hello nice to meet you. Welcome to our language center.", option1: "", option2: "", option3: "", option4: "", thai: "สวัสดีค่ะ ยินดีที่ได้พบคุณนะคะ ยินดีต้อนรับเข้าสู่ศูนย์ภาษาของเราค่ะ" }
+    ];
+
+    const MOCK_BUSINESS_QUESTIONS = [
+      { id: 1, level: "A1-BIZ", type: "listening", question: "Our corporate headquarters opens at precisely nine AM every single weekday morning.", answer: "Our corporate headquarters opens at precisely nine AM every single weekday morning.", option1: "opens", option2: "closes", option3: "moves", option4: "relocates", thai: "สำนักงานใหญ่ของบริษัทเราเปิดทำการในเวลาเก้าโมงตรงในทุกๆ เช้าวันทำงานปกติค่ะ" }
+    ];
+
+    // ==========================================
+    // 🚀 OBTANING DIALOGUES EXTERNALLY (OPTIMIZED)
+    // ==========================================
+    let DIALOGUES = { general: [], business: [] };
+
+    async function loadExternalDialogues() {
+   try {
+     // ตรวจสอบว่ามีข้อมูลจากไฟล์ dialogues-data.js โหลดเข้ามาฉีดใน window หรือไม่
+     if (window.RAW_DIALOGUES_DATA) {
+       const rawJsonData = window.RAW_DIALOGUES_DATA;
+
+       DIALOGUES.general = createDialogueArray(rawJsonData.general, 1, false);
+       DIALOGUES.business = createDialogueArray(rawJsonData.business, 1, true);
+
+       populateDialogueDropdown();
+       console.log("📥 AI Speech Dialogues parsed safely from local script variable.");
+     } else {
+       throw new Error("RAW_DIALOGUES_DATA is not defined");
+     }
+   } catch (error) {
+     console.error("❌ Failed to process dialogues variable:", error);
+     alertToast("ระบบโหลดหมวดสนทนา AI ขัดข้อง สลับใช้ข้อมูลทดสอบ", "error");
+     useFallbackDialogues();
+   }
+ }
+
+    let appState = {
+      user: null, 
+      tempDeleteCode: null,
+      settings: { sheetId: "", gasUrl: "", mode: "demo" },
+      currentPractice: { category: null, questions: [], currentIndex: 0, score: 0, tempHistory: [], hasChecked: false, selectedAnswer: "", translationVisible: false, scrambleSelected: [] },
+      activeDialogue: { id: null, tab: 'general', steps: [], currentStepId: 1, chatHistory: [], scoreRecords: [] },
+      db: { users: [...MOCK_USERS], questions: [...MOCK_QUESTIONS], business_questions: [...MOCK_BUSINESS_QUESTIONS], progress: [], sessions: [] }
+    };
+
+    let dashboardExpansion = { history: false, sessions: false };
+    let synth = null;
+    try {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        synth = window.speechSynthesis;
+      }
+    } catch (e) { console.warn("Speech synthesis unavailable:", e); }
+    let currentUtterance = null;
+    let lastSpeechGender = 'female'; 
+
+    function getCompletedSentence(questionText, correctAnswer) {
+      let text = String(questionText || "").trim();
+      let ans = String(correctAnswer || "").trim();
+      const blankRegex = /__+|\[blank\]|_+/g;
+      if (blankRegex.test(text)) {
+        return text.replace(blankRegex, ans);
+      }
+      return text;
+    }
+
+    function calculateSimilarityRatio(str1, str2) {
+      const s1 = cleanTextForComparison(str1);
+      const s2 = cleanTextForComparison(str2);
+      if (s1 === s2) return 1.0;
+      if (!s1 || !s2) return 0.0;
+
+      const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+      for (let i = 0; i <= s1.length; i += 1) track[0][i] = i;
+      for (let j = 0; j <= s2.length; j += 1) track[j][0] = j;
+      for (let j = 1; j <= s2.length; j += 1) {
+        for (let i = 1; i <= s1.length; i += 1) {
+          const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+          track[j][i] = Math.min(track[j - 1][i] + 1, track[j][i - 1] + 1, track[j - 1][i - 1] + indicator);
+        }
+      }
+      const distance = track[s2.length][s1.length];
+      const maxLength = Math.max(s1.length, s2.length);
+      const charScore = (maxLength - distance) / maxLength;
+
+      const w1 = s1.split(/\s+/).filter(w => w !== "");
+      const w2 = s2.split(/\s+/).filter(w => w !== "");
+      let matches = 0;
+      const set2 = new Set(w2);
+      w1.forEach(word => { if (set2.has(word)) matches++; });
+      const wordScore = matches / Math.max(w1.length, w2.length);
+
+      return (charScore * 0.4) + (wordScore * 0.6);
+    }
+
+    function safeCreateIcons() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        try { lucide.createIcons(); } catch (e) {}
+      }
+    }
+
+    window.onload = function() {
+      localStorage.removeItem('cefr_user_session');
+      sessionStorage.clear();
+      
+      safeCreateIcons();
+      adjustLayoutForMobile();
+      parseUrlParametersAndInit();
+
+      if (appState.settings.sheetId) {
+        appState.settings.mode = 'sheets';
+        localStorage.setItem('cefr_mode', 'sheets');
+      }
+
+      checkAuthSession();
+      loadInitialStats(); 
+      activateSecurityShield(); 
+      
+      // 🚀 EXECUTE ASYNC LOAD
+      loadExternalDialogues();
+
+      window.addEventListener('resize', adjustLayoutForMobile);
+    };
+
+    function adjustLayoutForMobile() {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      if (isMobileDevice) {
+        document.body.classList.add('mobile-mode-active');
+      } else {
+        document.body.classList.remove('mobile-mode-active');
+      }
+    }
+
+    function cleanSheetId(idInput) {
+      if (!idInput) return "";
+      let cleaned = idInput.trim();
+      const match = cleaned.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) return match[1];
+      return cleaned;
+    }
+
+    function parseUrlParametersAndInit() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlSheetId = urlParams.get('sheetId');
+      const urlGasUrl = urlParams.get('gasUrl');
+
+      const localSheetId = localStorage.getItem('cefr_sheet_id');
+      const localGasUrl = localStorage.getItem('cefr_gas_url');
+
+      let rawSheetId = urlSheetId || localSheetId || DEFAULT_SHEET_ID;
+      appState.settings.sheetId = cleanSheetId(rawSheetId);
+      appState.settings.gasUrl = urlGasUrl || localGasUrl || DEFAULT_GAS_URL;
+
+      if (appState.settings.sheetId) localStorage.setItem('cefr_sheet_id', appState.settings.sheetId);
+      if (appState.settings.gasUrl) localStorage.setItem('cefr_gas_url', appState.settings.gasUrl);
+
+      document.getElementById('admin-cfg-sheet-id').value = rawSheetId; 
+      document.getElementById('admin-cfg-gas-url').value = appState.settings.gasUrl;
+
+      if (appState.settings.sheetId) {
+        appState.settings.mode = localStorage.getItem('cefr_mode') || 'sheets';
+      } else {
+        appState.settings.mode = 'demo';
+      }
+
+      updateModeUI();
+    }
+
+    async function loadInitialStats() {
+      const hintElem = document.getElementById('demo-code-hint');
+      if (appState.settings.mode === 'sheets' && appState.settings.sheetId) {
+        if (hintElem) hintElem.innerHTML = `<span class="text-purple-600 font-bold animate-pulse">🔄 กำลังล้างแคช และซิงค์จาก คราวด์...</span>`;
+        try {
+          const u = await fetchSheetData("users");
+          const q = await fetchSheetData("questions");
+          const bq = await fetchSheetData("business_questions");
+          const s = await fetchSheetData("sessions");
+          
+          if (u && u.length > 0) {
+            appState.db.users = u;
+            if (hintElem) hintElem.innerHTML = `🟢 เชื่อมต่อสดสำเร็จ! อัปเดตล่าสุด <span class="font-mono bg-emerald-100 text-emerald-850 px-1.5 py-0.5 rounded font-black">${u.length}</span>`;
+          } else {
+            if (hintElem) hintElem.innerHTML = `⚠️ คอนเนคสำเร็จ แต่ไม่พบข้อมูลผู้ใช้ในแถบชีต users`;
+          }
+          
+          if (q) appState.db.questions = q;
+          if (bq) appState.db.business_questions = bq;
+          if (s) appState.db.sessions = s;
+        } catch(e) {
+          console.warn("Using cached / mock databases due to exception:", e);
+          if (hintElem) hintElem.innerHTML = `🔴 สิทธิ์เข้าถึงถูกปิด: ${e.message} (สลับใช้ระบบจำลองในเครื่อง)`;
+        }
+      } else {
+        if (hintElem) hintElem.innerHTML = `💡 โหมดทดสอบจำลองทำงานอยู่ (Demo Mode Active)`;
+      }
+      updateAdminStatsUI();
+    }
+
+    function updateModeUI() {
+      const btnSwitchDemo = document.getElementById('admin-btn-mode');
+      const demoHint = document.getElementById('demo-code-hint');
+      
+      if (appState.settings.mode === 'sheets') {
+        if (btnSwitchDemo) {
+          btnSwitchDemo.innerText = "สลับโหมด: เชื่อมต่อ Sheets จริง";
+          btnSwitchDemo.className = "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold py-2 rounded-lg transition text-center";
+        }
+      } else {
+        if (btnSwitchDemo) {
+          btnSwitchDemo.innerText = "สลับโหมด: โหมดจำลอง (Demo)";
+          btnSwitchDemo.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg transition text-center";
+        }
+        if (demoHint) demoHint.innerHTML = `💡 โหมดทดสอบจำลองเพื่อตรวจโค้ด (Demo Mode Active)`;
+      }
+    }
+
+    function alertToast(msg, type = "info") {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `p-4 rounded-xl shadow-lg border text-sm font-semibold flex items-center gap-2 transform translate-y-2 opacity-0 transition duration-300 pointer-events-auto bg-white z-[200]`;
+      
+      let icon = "info";
+      if (type === "success") {
+        toast.classList.add('border-emerald-100', 'text-emerald-800');
+        icon = "check-circle";
+      } else if (type === "error") {
+        toast.classList.add('border-rose-100', 'text-rose-800');
+        icon = "alert-circle";
+      } else if (type === "warning") {
+        toast.classList.add('border-amber-100', 'text-amber-800');
+        icon = "shield-alert";
+      } else {
+        toast.classList.add('border-purple-100', 'text-purple-800');
+      }
+
+      toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 shrink-0"></i> <span>${msg}</span>`;
+      container.appendChild(toast);
+      safeCreateIcons();
+
+      setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    function openInstructionsModal() { document.getElementById('instructions-modal').classList.remove('hidden'); }
+    function closeInstructionsModal() { document.getElementById('instructions-modal').classList.add('hidden'); }
+
+    function openAdminPasswordModal() {
+      document.getElementById('admin-key-input').value = "";
+      document.getElementById('admin-password-modal').classList.remove('hidden');
+      document.getElementById('admin-key-input').focus();
+    }
+    function closeAdminPasswordModal() { document.getElementById('admin-password-modal').classList.add('hidden'); }
+
+    function handleAdminPasswordKeydown(event) {
+      if (event.key === "Enter") { submitAdminPassword(); }
+    }
+
+    function submitAdminPassword() {
+      const passwordInput = document.getElementById('admin-key-input').value.trim();
+      if (passwordInput === ADMIN_PASSWORD_KEY) {
+        closeAdminPasswordModal();
+        alertToast("ยินดีต้อนรับผู้ดูแลระบบ! เข้าถึงแผงควบคุมหลักเรียบร้อย", "success");
+        enterAdminView();
+      } else {
+        alertToast("❌ รหัสผ่านลับแอดมินไม่ถูกต้อง", "error");
+      }
+    }
+
+    function enterAdminView() {
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-dashboard').classList.add('hidden');
+      document.getElementById('view-practice').classList.add('hidden');
+      document.getElementById('view-dialogue').classList.add('hidden');
+      document.getElementById('view-admin').classList.remove('hidden');
+      
+      updateAdminStatsUI();
+      adminUsersCurrentPage = 1;
+      renderAdminUsersTable();
+      safeCreateIcons();
+    }
+
+    function exitAdminView() {
+      document.getElementById('view-admin').classList.add('hidden');
+      checkAuthSession();
+    }
+
+    function countQuestionsByLevel(questionsList) {
+      const counts = { 
+        "A1.1": 0, "A1.2": 0, "A2.1": 0, "A2.2": 0, 
+        "B1.1": 0, "B1.2": 0, "B2.1": 0, "B2.2": 0, 
+        "C1.1": 0, "C1.2": 0, "C2.1": 0, "C2.2": 0 
+      };
+      if (!questionsList || !Array.isArray(questionsList)) return counts;
+
+      questionsList.forEach(q => {
+        const normQ = normalizeKeys(q);
+        let rawLevel = getFieldValue(normQ, ['level', 'ระดับ', 'cefr', 'col_0', 'col_a']).toUpperCase().trim();
+        const cleanLevel = rawLevel.replace("-BIZ", "");
+        if (counts[cleanLevel] !== undefined) { counts[cleanLevel]++; }
+      });
+      return counts;
+    }
+
+    function getLatestLoginTimestamp(userCode) {
+      if (!userCode) return "ยังไม่เคยเข้าใช้งาน";
+      const sessions = appState.db.sessions || [];
+      const cleanUserCode = String(userCode).trim().toLowerCase();
+
+      for (let i = sessions.length - 1; i >= 0; i--) {
+        const normS = normalizeKeys(sessions[i]);
+        const sUser = getFieldValue(normS, ['รหัสผู้เรียน', 'usercode', 'studentcode', 'col_2', 'col_c']).trim().toLowerCase();
+        if (sUser === cleanUserCode) {
+          const loginTime = getFieldValue(normS, ['วัน เวลา เข้าระบบ', 'logintime', 'เวลาเข้าระบบ', 'col_0', 'col_a']);
+          if (loginTime && loginTime !== "-") { return healDateString(loginTime); }
+        }
+      }
+      return "ยังไม่เคยเข้าใช้งาน";
+    }
+
+    function updateAdminStatsUI() {
+      let totalUsers = 0;
+      try {
+        if (appState.db && appState.db.users && Array.isArray(appState.db.users)) {
+          const realUsers = appState.db.users.filter(user => {
+            if (!user) return false;
+            let userCode = ""; let userName = "";
+            if (typeof user === 'object' && !Array.isArray(user)) {
+              const normUser = normalizeKeys(user);
+              userCode = String(getFieldValue(normUser, ['code', 'รหัส', 'col_1', 'col_b'], "")).trim();
+              userName = String(getFieldValue(normUser, ['name', 'ชื่อ', 'col_0', 'col_a'], "")).trim();
+            } else if (Array.isArray(user)) {
+              userName = String(user[0] || "").trim(); userCode = String(user[1] || "").trim();
+            } else { userCode = String(user).trim(); }
+
+            const cleanCode = userCode.toLowerCase(); const cleanName = userName.toLowerCase();
+            if (cleanCode === "" || cleanCode === "undefined" || cleanCode === "null") return false;
+            if (cleanCode === "code" || cleanCode === "รหัส" || cleanCode === "รหัสผู้เข้าเรียน") return false;
+            if (cleanName === "name" || cleanName === "ชื่อ" || cleanName === "ชื่อ-นามสกุล") return false;
+            if (userCode.length < 2) return false;
+            return true; 
+          });
+          totalUsers = realUsers.length;
+          if (totalUsers > 0 && appState.db.users.length !== totalUsers) { appState.filteredUsersForCounter = realUsers; }
+        }
+      } catch (err) { console.error("Error calculating users:", err); }
+
+      const totalQuestionsGen = (appState.db && appState.db.questions) ? appState.db.questions.length : 0;
+      const totalQuestionsBiz = (appState.db && appState.db.business_questions) ? appState.db.business_questions.length : 0;
+      
+      const elUsers = document.getElementById('admin-stat-users');
+      const elGenTotal = document.getElementById('admin-stat-gen-total');
+      const elBizTotal = document.getElementById('admin-stat-biz-total');
+      
+      if (elUsers) elUsers.innerText = totalUsers; 
+      if (elGenTotal) elGenTotal.innerText = totalQuestionsGen;
+      if (elBizTotal) elBizTotal.innerText = totalQuestionsBiz;
+
+      try {
+        const genLevels = countQuestionsByLevel(appState.db.questions);
+        const bizLevels = countQuestionsByLevel(appState.db.business_questions);
+        const mainLevels = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
+        mainLevels.forEach(lvl => {
+          const uLvl = lvl.toUpperCase();
+          const genSum = (genLevels[`${uLvl}.1`] || 0) + (genLevels[`${uLvl}.2`] || 0);
+          const bizSum = (bizLevels[`${uLvl}.1`] || 0) + (bizLevels[`${uLvl}.2`] || 0);
+          
+          const elGenCount = document.getElementById(`gen-count-${lvl}`);
+          const elBizCount = document.getElementById(`biz-count-${lvl}`);
+          if (elGenCount) elGenCount.innerText = genSum;
+          if (elBizCount) elBizCount.innerText = bizSum;
+        });
+      } catch (e) { console.error("Error parsing breakdown sums:", e); }
+    }
+
+    function switchModeAdmin() {
+      const currentMode = appState.settings.mode;
+      const targetMode = currentMode === 'sheets' ? 'demo' : 'sheets';
+      appState.settings.mode = targetMode;
+      localStorage.setItem('cefr_mode', targetMode);
+      
+      updateModeUI();
+      updateAdminStatsUI();
+      alertToast(`สลับโหมดปฏิบัติการเป็น: ${targetMode === 'sheets' ? 'เชื่อมต่อ คราวด์' : 'โหมดจำลอง (Demo)'}`, "success");
+    }
+
+    function saveAdminSettings() {
+      const rawInput = document.getElementById('admin-cfg-sheet-id').value.trim();
+      const sId = cleanSheetId(rawInput);
+      const gUrl = document.getElementById('admin-cfg-gas-url').value.trim();
+
+      if (!sId) { alertToast("กรุณากรอก Google Sheet ID ก่อนทำการบันทึกระบบ!", "error"); return; }
+
+      localStorage.setItem('cefr_sheet_id', sId);
+      localStorage.setItem('cefr_gas_url', gUrl);
+      localStorage.setItem('cefr_mode', 'sheets');
+
+      appState.settings.sheetId = sId;
+      appState.settings.gasUrl = gUrl;
+      appState.settings.mode = 'sheets';
+
+      updateModeUI();
+      loadInitialStats(); 
+      alertToast("บันทึกการตั้งค่าลิงก์คลาวด์สำเร็จ!", "success");
+    }
+
+    async function syncAllFromSheets() {
+      if (appState.settings.mode !== 'sheets') {
+        alertToast("กรุณาสลับเป็นโหมด 'เชื่อมต่อ คราวด์' ก่อนทำการซิงค์!", "warning");
+        return;
+      }
+
+      alertToast("🔄 เริ่มการดึงข้อมูลสดจากแผ่นงาน คราวด์...");
+      try {
+        const freshUsers = await fetchSheetData("users");
+        const freshQuestions = await fetchSheetData("questions");
+        const freshBizQuestions = await fetchSheetData("business_questions");
+        const freshSessions = await fetchSheetData("sessions");
+
+        let successCount = 0;
+        if (freshUsers) { appState.db.users = freshUsers; successCount++; }
+        if (freshQuestions) { appState.db.questions = freshQuestions; successCount++; }
+        if (freshBizQuestions) { appState.db.business_questions = freshBizQuestions; successCount++; }
+        if (freshSessions) { appState.db.sessions = freshSessions; successCount++; }
+
+        if (successCount > 0) {
+          updateAdminStatsUI();
+          adminUsersCurrentPage = 1;
+          renderAdminUsersTable();
+          alertToast("✨ ดึงข้อมูลและซิงค์สำเร็จทั้งหมด!", "success");
+        } else {
+          alertToast("❌ การซิงค์ข้อมูลล้มเหลว ตรวจสอบสิทธิ์การแชร์", "error");
+        }
+      } catch (e) { alertToast(`❌ การเชื่อมต่อล้มเหลว: ${e.message}`, "error"); }
+    }
+
+    function renderAdminUsersTable() {
+      const tbody = document.getElementById('admin-users-table-rows');
+      const searchQuery = document.getElementById('admin-search-users').value.trim().toLowerCase();
+      tbody.innerHTML = "";
+
+      const filtered = appState.db.users.filter(u => {
+        const norm = normalizeKeys(u);
+        const code = getFieldValue(norm, ['code', 'รหัส', 'รหัสผู้เรียน', 'usercode', 'studentcode', 'col_0', 'col_a']).toLowerCase();
+        const name = getFieldValue(norm, ['name', 'ชื่อ', 'username', 'col_1', 'col_b']).toLowerCase();
+        return code.includes(searchQuery) || name.includes(searchQuery);
+      });
+
+      const totalItems = filtered.length;
+      if (totalItems === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">ไม่พบรหัสผู้เรียนตามเงื่อนไขที่ระบุ</td></tr>`;
+        document.getElementById('admin-table-pagination-info').innerText = "กำลังแสดง 0 ถึง 0 จากทั้งหมด 0 รหัส";
+        document.getElementById('admin-page-number-buttons').innerHTML = "";
+        document.getElementById('admin-btn-page-prev').disabled = true;
+        document.getElementById('admin-btn-page-next').disabled = true;
+        return;
+      }
+
+      const totalPages = Math.ceil(totalItems / adminUsersPageSize);
+      if (adminUsersCurrentPage > totalPages) adminUsersCurrentPage = totalPages;
+      if (adminUsersCurrentPage < 1) adminUsersCurrentPage = 1;
+
+      const startIndex = (adminUsersCurrentPage - 1) * adminUsersPageSize;
+      const endIndex = Math.min(startIndex + adminUsersPageSize, totalItems);
+      const paginatedUsers = filtered.slice(startIndex, endIndex);
+
+      document.getElementById('admin-table-pagination-info').innerText = `กำลังแสดง ${startIndex + 1} ถึง ${endIndex} จากทั้งหมด ${totalItems} รหัส`;
+
+      paginatedUsers.forEach(u => {
+        const norm = normalizeKeys(u);
+        const code = getFieldValue(norm, ['code', 'รหัส', 'รหัสผู้เรียน', 'usercode', 'studentcode', 'col_0', 'col_a']);
+        const name = getFieldValue(norm, ['name', 'ชื่อ', 'username', 'col_1', 'col_b'], "ไม่มีชื่อ");
+        const level = getFieldValue(norm, ['level', 'ระดับ', 'cefr', 'col_2', 'col_c'], "A1");
+        const latestLogin = getLatestLoginTimestamp(code);
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 border-b border-slate-100 transition duration-150";
+        tr.innerHTML = `
+          <td class="p-3 font-mono font-bold text-purple-700">${code}</td>
+          <td class="p-3 font-semibold text-slate-700">${name}</td>
+          <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">${level}</span></td>
+          <td class="p-3 text-center text-slate-500 font-mono text-[11px] font-medium">${latestLogin}</td>
+          <td class="p-3 text-right">
+            <button onclick="prepareDeleteStudentCode('${code}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition" title="ลบรหัสนี้">
+              <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('admin-btn-page-prev').disabled = (adminUsersCurrentPage === 1);
+      document.getElementById('admin-btn-page-next').disabled = (adminUsersCurrentPage === totalPages);
+
+      const pageNumContainer = document.getElementById('admin-page-number-buttons');
+      pageNumContainer.innerHTML = "";
+
+      let startPage = Math.max(1, adminUsersCurrentPage - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+      if (endPage - startPage < 4) { startPage = Math.max(1, endPage - 4); }
+
+      for (let p = startPage; p <= endPage; p++) {
+        const btn = document.createElement('button');
+        btn.innerText = p;
+        btn.onclick = () => { adminUsersCurrentPage = p; renderAdminUsersTable(); };
+        btn.className = (p === adminUsersCurrentPage) ? "w-7 h-7 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-sm" : "w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition";
+        pageNumContainer.appendChild(btn);
+      }
+      safeCreateIcons();
+    }
+
+    function changeAdminPage(dir) { adminUsersCurrentPage += dir; renderAdminUsersTable(); }
+
+    async function addStudentCodeAdmin() {
+      const code = document.getElementById('admin-user-code').value.trim();
+      const name = document.getElementById('admin-user-name').value.trim();
+      const level = document.getElementById('admin-user-level').value;
+
+      if (!code || !name) { alertToast("กรุณากรอกข้อมูลให้ครบถ้วน!", "error"); return; }
+
+      const existing = findUserByCode(appState.db.users, code);
+      if (existing) { alertToast(`❌ รหัสผู้เรียน '${code}' ซ้ำในระบบ`, "error"); return; }
+
+      const newRecord = { code: code, name: name, level: level };
+      appState.db.users.push(newRecord);
+      
+      if (appState.settings.mode === 'sheets' && appState.settings.gasUrl) {
+        alertToast("📡 กำลังส่งข้อมูลรหัสเขียนลง คราวด์...");
+        try {
+          const payload = { sheet: "users", action: "addUser", code: code, name: name, level: level, spreadsheetId: appState.settings.sheetId };
+          await fetch(appState.settings.gasUrl, {
+            method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload)
+          });
+          alertToast("✨ เขียนบันทึกข้อมูลรหัสลงชีตเรียบร้อย!", "success");
+        } catch (e) { console.error("GAS writing error:", e); }
+      } else { alertToast(`✓ เพิ่มรหัสผู้เรียน '${code}' เข้าสู่ความจำชั่วคราวแล้ว`, "success"); }
+
+      document.getElementById('admin-user-code').value = "";
+      document.getElementById('admin-user-name').value = "";
+      updateAdminStatsUI();
+      renderAdminUsersTable();
+    }
+
+    function prepareDeleteStudentCode(code) {
+      appState.tempDeleteCode = code;
+      document.getElementById('admin-delete-modal-msg').innerText = `ต้องการลบรหัสผู้เรียน "${code}" ใช่หรือไม่?`;
+      document.getElementById('admin-confirm-delete-modal').classList.remove('hidden');
+      safeCreateIcons();
+    }
+
+    function createPoolDrawer(questionsList, fallbackPool = []) {
+      let source = questionsList.length > 0 ? questionsList : fallbackPool;
+      let pool = [...source].sort(() => 0.5 - Math.random());
+      let index = 0;
+      return {
+        hasQuestions: pool.length > 0,
+        draw: function() {
+          if (pool.length === 0) return null;
+          if (index >= pool.length) { pool.sort(() => 0.5 - Math.random()); index = 0; }
+          return pool[index++];
+        }
+      };
+    }
+
+    function closeAdminDeleteModal() {
+      document.getElementById('admin-confirm-delete-modal').classList.add('hidden');
+      appState.tempDeleteCode = null;
+    }
+
+    function executeStudentDelete() {
+      const code = appState.tempDeleteCode;
+      if (code) {
+        appState.db.users = appState.db.users.filter(u => {
+          const norm = normalizeKeys(u);
+          const c = getFieldValue(norm, ['code', 'รหัส', 'รหัสผู้เรียน', 'col_0', 'col_a']);
+          return c.toLowerCase() !== code.toLowerCase();
+        });
+        updateAdminStatsUI();
+        renderAdminUsersTable();
+        alertToast("ทำการลบรหัสผู้เรียนสำเร็จ", "success");
+      }
+      closeAdminDeleteModal();
+    }
+
+    async function runDiagnosticsAdmin() {
+      const consolePanel = document.getElementById('admin-diagnostic-console');
+      const logArea = document.getElementById('admin-diagnostic-log');
+      consolePanel.classList.remove('hidden'); logArea.innerHTML = "";
+
+      const addLog = (text, status = 'info') => {
+        const item = document.createElement('p');
+        item.className = (status === 'success') ? 'text-emerald-400' : (status === 'error') ? 'text-rose-400 font-bold' : 'text-slate-300';
+        item.innerHTML = (status === 'success') ? `🟢 [SUCCESS] ${text}` : (status === 'error') ? `🔴 [ERROR] ${text}` : `⚪ [INFO] ${text}`;
+        logArea.appendChild(item); logArea.scrollTop = logArea.scrollHeight;
+      };
+
+      addLog("เริ่มวิเคราะห์สิทธิ์การเข้าถึง คราวด์...");
+      if (!appState.settings.sheetId) { addLog("ไม่พบ Google Sheet ID", 'error'); return; }
+
+      try {
+        const data = await fetchSheetDataViaJSONP("users");
+        if (data && data.length > 0) { addLog(`🎉 ดึงข้อมูลผ่าน JSONP CORS Bypass สำเร็จ! แถวข้อมูล: ${data.length}`, 'success'); }
+        else { addLog("ชีตว่างเปล่าหรือไม่ได้ใส่ข้อมูลใดๆ", 'warning'); }
+      } catch (e) { addLog(`CORS ไร้ขอบเขตขัดข้อง: ${e.message}`, 'error'); }
+    }
+
+    function normalizeKeys(obj) {
+      if (!obj) return {};
+      let normalized = {};
+      for (let key in obj) { if (obj.hasOwnProperty(key)) { normalized[String(key).trim().toLowerCase()] = obj[key]; } }
+      return normalized;
+    }
+
+    function normalizeFetchedRows(rows) {
+      if (!Array.isArray(rows)) return [];
+      return rows.map(row => {
+        let enriched = {};
+        for (let key in row) { if (row.hasOwnProperty(key)) { enriched[String(key).trim().toLowerCase()] = row[key]; } }
+        let keys = Object.keys(row).filter(k => k !== 'rowid' && k !== 'row_id');
+        keys.forEach((key, colIndex) => {
+          enriched[`col_${colIndex}`] = row[key];
+          enriched[`col_${String.fromCharCode(65 + colIndex).toLowerCase()}`] = row[key];
+        });
+        return enriched;
+      });
+    }
+
+    function getFieldValue(normObj, possibleKeys, defaultVal = "") {
+      for (let key of possibleKeys) { if (normObj[key] !== undefined && normObj[key] !== null) { return String(normObj[key]).trim(); } }
+      return defaultVal;
+    }
+
+    function findUserByCode(usersList, codeInput) {
+      const cleanInput = String(codeInput).trim().toLowerCase();
+      return usersList.find(u => {
+        const norm = normalizeKeys(u);
+        return getFieldValue(norm, ['code', 'รหัส', 'รหัสผู้เรียน', 'usercode', 'studentcode', 'col_0', 'col_a']).toLowerCase() === cleanInput;
+      });
+    }
+
+    function toggleSectionExpand(section) {
+      const icon = document.getElementById(`toggle-icon-${section}`);
+      const list = document.getElementById(section === 'history' ? 'progress-history-list' : 'sessions-history-list');
+      if (!list) return;
+
+      if (section === 'history') {
+        dashboardExpansion.history = !dashboardExpansion.history;
+        if (dashboardExpansion.history) { list.classList.remove('max-h-[120px]'); list.classList.add('max-h-[500px]'); icon.setAttribute('data-lucide', 'chevron-up'); }
+        else { list.classList.remove('max-h-[500px]'); list.classList.add('max-h-[120px]'); icon.setAttribute('data-lucide', 'chevron-down'); }
+      } else {
+        dashboardExpansion.sessions = !dashboardExpansion.sessions;
+        if (dashboardExpansion.sessions) { list.classList.remove('max-h-[80px]'); list.classList.add('max-h-[300px]'); icon.setAttribute('data-lucide', 'chevron-up'); }
+        else { list.classList.remove('max-h-[300px]'); list.classList.add('max-h-[80px]'); icon.setAttribute('data-lucide', 'chevron-down'); }
+      }
+      safeCreateIcons();
+    }
+
+    function checkAuthSession() {
+      const savedSession = localStorage.getItem('cefr_user_session');
+      if (savedSession) { appState.user = JSON.parse(savedSession); setupDashboardView(); }
+      else { switchView('login'); }
+    }
+
+    async function handleLogin() {
+      const codeInput = document.getElementById('login-code').value.trim();
+      if (!codeInput) { alertToast("กรุณากรอกรหัสประจำตัวผู้เรียน!", "error"); return; }
+
+      localStorage.removeItem('cefr_user_session'); sessionStorage.clear(); appState.user = null;
+      showLoadingState(true);
+
+      try {
+        let userRow = null; let usersList = [];
+        if (appState.settings.mode === 'sheets') {
+          usersList = await fetchSheetData("users");
+          if (usersList === null) { showLoadingState(false); return; }
+          if (usersList.length > 0) { userRow = findUserByCode(usersList, codeInput); }
+          else { alertToast("แผ่นงาน 'users' ไม่มีข้อมูลผู้ใช้", "error"); showLoadingState(false); return; }
+        } else {
+          usersList = appState.db.users; userRow = findUserByCode(usersList, codeInput);
+        }
+
+        if (!userRow) { showLoadingState(false); alertToast("❌ ไม่พบรหัสผู้เรียน '" + codeInput + "' ในระบบหลังบ้าน", "error"); return; }
+
+        const normUser = normalizeKeys(userRow);
+        const resolvedCode = getFieldValue(normUser, ['code', 'รหัส', 'รหัสผู้เรียน', 'usercode', 'studentcode', 'col_0', 'col_a']);
+        const resolvedName = getFieldValue(normUser, ['name', 'ชื่อ', 'username', 'col_1', 'col_b'], "ผู้เรียน");
+        let resolvedLevel = getFieldValue(normUser, ['level', 'ระดับ', 'cefr', 'col_2', 'col_c'], "A1");
+
+        let progressRecords = [];
+        if (appState.settings.mode === 'sheets') {
+          progressRecords = await fetchSheetData("progress");
+          if (progressRecords && progressRecords.length > 0) {
+            const userProgress = progressRecords.filter(p => {
+              const normP = normalizeKeys(p);
+              return Object.values(normP).some(val => String(val).trim().toLowerCase() === resolvedCode.toLowerCase());
+            });
+            if (userProgress.length > 0) {
+              const latestProgress = normalizeKeys(userProgress[userProgress.length - 1]);
+              resolvedLevel = getFieldValue(latestProgress, ['ระดับที่ทำได้', 'level', 'ระดับ', 'col_3', 'col_d'], resolvedLevel);
+            }
+          }
+        }
+
+        appState.user = {
+          code: resolvedCode, name: resolvedName, level: resolvedLevel,
+          defaultLevel: getFieldValue(normUser, ['level', 'ระดับ', 'cefr', 'col_2', 'col_c'], "A1"),
+          isBiz: ALLOWED_BIZ_LEVELS.includes(resolvedLevel.toUpperCase())
+        };
+
+        localStorage.setItem('cefr_user_session', JSON.stringify(appState.user));
+        await logSessionToGAS("login", appState.user.code);
+        alertToast("เข้าสู่ระบบเรียบร้อย ยินดีต้อนรับคุณ " + resolvedName, "success");
+        setupDashboardView();
+      } catch (error) { console.error("Login Error:", error); showLoadingState(false); alertToast("ระบบขัดข้อง: " + error.message, "error"); }
+    }
+
+    async function handleLogout() {
+      if (appState.user) { await logSessionToGAS("logout", appState.user.code); }
+      localStorage.removeItem('cefr_user_session'); sessionStorage.clear(); appState.user = null;
+      switchView('login'); alertToast("ออกจากระบบและลงเวลากลับสำเร็จ", "success");
+    }
+
+    function showLoadingState(show) {
+      const loginBtn = document.querySelector('#view-login button');
+      if (show) {
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></span> กำลังประมวลผลล็อกอินคลาวด์...`;
+      } else {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = `<span>เข้าสู่บทเรียนเพื่อเริ่มฝึก</span> <i data-lucide="arrow-right" class="w-5 h-5"></i>`;
+        safeCreateIcons();
+      }
+    }
+
+    async function fetchSheetData(sheetName) {
+      const sheetId = appState.settings.sheetId; if (!sheetId) return null;
+      let rawRows = null; const cacheBuster = Date.now(); 
+      
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const text = await response.text();
+          if (!text.includes("<!DOCTYPE html>") && !text.includes("ServiceLogin")) {
+            const jsonStart = text.indexOf('{'); const jsonEnd = text.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+              rawRows = parseGVizData(JSON.parse(text.substring(jsonStart, jsonEnd + 1)));
+            }
+          }
+        }
+      } catch (err) { console.warn(`Direct CORS Blocked on ${sheetName}. Trying JSONP...`); }
+
+      if (!rawRows) { try { rawRows = await fetchSheetDataViaJSONP(sheetName); } catch (e) {} }
+      if (!rawRows && appState.settings.gasUrl) {
+        try {
+          const gasResponse = await fetch(`${appState.settings.gasUrl}?action=read&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}&spreadsheetId=${appState.settings.sheetId}`);
+          const gasJson = await gasResponse.json();
+          if (gasJson && gasJson.status === "success") { rawRows = gasJson.data; }
+        } catch (e) {}
+      }
+      return rawRows ? normalizeFetchedRows(rawRows) : null;
+    }
+
+    function parseGVizData(data) {
+      if (!data || !data.table) return [];
+      const cols = data.table.cols.map(c => c.label || '');
+      return data.table.rows.map((r) => {
+        let obj = {};
+        r.c.forEach((val, colIndex) => {
+          const key = cols[colIndex] || `col_${colIndex}`;
+          obj[key] = val ? (val.f !== undefined ? val.f : (val.v !== undefined ? val.v : '')) : '';
+        });
+        return obj;
+      });
+    }
+
+    async function logSessionToGAS(action, userCode) {
+      if (appState.settings.mode !== 'sheets' || !appState.settings.gasUrl) {
+        const ts = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
+        if (action === "login") { appState.db.sessions.push({ "วัน เวลา เข้าระบบ": ts, "เวลาออกจาก ระบบ": "", "รหัสผู้เรียน": userCode }); }
+        else {
+          for (let i = appState.db.sessions.length - 1; i >= 0; i--) {
+            if (appState.db.sessions[i]["รหัสผู้เรียน"] === userCode && appState.db.sessions[i]["เวลาออกจาก ระบบ"] === "") { appState.db.sessions[i]["เวลาออกจาก ระบบ"] = ts; break; }
+          }
+        } return;
+      }
+      try {
+        await fetch(appState.settings.gasUrl, {
+          method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ sheet: "sessions", action: action, userCode: userCode, spreadsheetId: appState.settings.sheetId })
+        });
+      } catch(e) {}
+    }
+
+    async function saveProgressToGAS(category, score, levelAchieved, userCode, remarks) {
+      if (appState.settings.mode !== 'sheets' || !appState.settings.gasUrl) {
+        appState.db.progress.push({
+          "วัน เวลา": new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }), "หมวดแบบฝึกหัดใด": category, "คะแนน ที่ทำได้": score + "%", "ระดับที่ทำได้": levelAchieved, "รหัสผู้เรียน": userCode, "หมายเหตุ": remarks
+        }); return;
+      }
+      try {
+        await fetch(appState.settings.gasUrl, {
+          method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ sheet: "progress", category: category, score: score + "%", level: levelAchieved, userCode: userCode, remarks: remarks, spreadsheetId: appState.settings.sheetId })
+        });
+      } catch(e) {}
+    }
+
+    function switchView(viewName) {
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-dashboard').classList.add('hidden');
+      document.getElementById('view-practice').classList.add('hidden');
+      document.getElementById('view-dialogue').classList.add('hidden');
+      document.getElementById('view-admin').classList.add('hidden');
+
+      const topAnnounceBar = document.getElementById('top-announcement-bar');
+      const mainRootContainer = document.getElementById('main-root-container');
+
+      if (viewName === 'login') {
+        document.getElementById('view-login').classList.remove('hidden');
+        if (topAnnounceBar) topAnnounceBar.classList.remove('hidden');
+        if (mainRootContainer) { mainRootContainer.classList.add('mb-16'); mainRootContainer.classList.remove('mb-4'); }
+      } else {
+        if (topAnnounceBar) topAnnounceBar.classList.add('hidden');
+        if (mainRootContainer) { mainRootContainer.classList.add('mb-4'); mainRootContainer.classList.remove('mb-16'); }
+
+        if (viewName === 'dashboard') { document.getElementById('view-dashboard').classList.remove('hidden'); document.getElementById('dashboard-home').classList.remove('hidden'); }
+        else if (viewName === 'practice') { document.getElementById('view-dashboard').classList.remove('hidden'); document.getElementById('view-practice').classList.remove('hidden'); document.getElementById('dashboard-home').classList.add('hidden'); }
+        else if (viewName === 'dialogue') { document.getElementById('view-dashboard').classList.remove('hidden'); document.getElementById('view-dialogue').classList.remove('hidden'); document.getElementById('dashboard-home').classList.add('hidden'); }
+      }
+    }
+
+    async function setupDashboardView() {
+      if (!appState.user) return;
+      switchView('dashboard');
+      
+      document.getElementById('user-avatar-char').innerText = appState.user.name.charAt(0);
+      document.getElementById('user-display-name').innerText = appState.user.name;
+      document.getElementById('user-display-code').innerText = appState.user.code;
+      document.getElementById('user-display-level').innerText = appState.user.level;
+      document.getElementById('dash-cefr-badge').innerText = appState.user.level;
+
+      const isUserBiz = ALLOWED_BIZ_LEVELS.includes(appState.user.level.toUpperCase());
+      const bizLock = document.getElementById('biz-lock-overlay');
+      const bizCard = document.getElementById('biz-module-card');
+      
+      if (isUserBiz) { if (bizLock) bizLock.classList.add('hidden'); if (bizCard) bizCard.classList.remove('opacity-60'); }
+      else { if (bizLock) bizLock.classList.remove('hidden'); if (bizCard) bizCard.classList.add('opacity-60'); }
+
+      await refreshUserStats();
+    }
+
+    async function refreshUserStats() {
+      const historyList = document.getElementById('progress-history-list');
+      const sessionList = document.getElementById('sessions-history-list');
+      
+      historyList.innerHTML = `<div class="text-center py-4"><span class="animate-spin inline-block h-4 w-4 border-2 border-purple-600 border-t-transparent rounded-full"></span> กำลังดึงประวัติล่าสุด...</div>`;
+      sessionList.innerHTML = `<div class="text-center py-2"><span class="animate-spin inline-block h-3 w-3 border-2 border-purple-600 border-t-transparent rounded-full"></span></div>`;
+
+      let progressData = []; let sessionsData = [];
+      if (appState.settings.mode === 'sheets') {
+        progressData = await fetchSheetData("progress") || []; sessionsData = await fetchSheetData("sessions") || [];
+      } else { progressData = appState.db.progress; sessionsData = appState.db.sessions; }
+
+      const filteredProgress = progressData.filter(p => {
+        const normP = normalizeKeys(p);
+        return Object.values(normP).some(val => String(val).trim().toLowerCase() === appState.user.code.toLowerCase());
+      });
+
+      if (filteredProgress.length > 0) {
+        historyList.innerHTML = ""; let totalScoreVal = 0;
+        filteredProgress.reverse().forEach(p => {
+          const normP = normalizeKeys(p);
+          const rawScore = getFieldValue(normP, ['คะแนน ที่ทำได้', 'score', 'คะแนนที่ทำได้', 'col_2', 'col_c'], "0%");
+          totalScoreVal += parseInt(rawScore) || 0;
+
+          const logItem = document.createElement('div');
+          logItem.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
+          logItem.innerHTML = `
+            <div>
+              <p class="font-semibold text-slate-800">${getFieldValue(normP, ['หมวดแบบฝึกหัดใด', 'category', 'col_1'], "แบบฝึกหัด")} (${getFieldValue(normP, ['ระดับที่ทำได้', 'level', 'col_3'], "-")})</p>
+              <p class="text-[10px] text-slate-400 font-mono">${healDateString(getFieldValue(normP, ['วัน เวลา', 'timestamp', 'col_0'], "-"))}</p>
+            </div>
+            <div class="text-right"><span class="font-bold text-purple-700 text-sm">${rawScore}</span></div>
+          `;
+          historyList.appendChild(logItem);
+        });
+
+        const avgScore = Math.round(totalScoreVal / filteredProgress.length);
+        document.getElementById('dash-avg-score').innerText = avgScore + "%";
+        document.getElementById('dash-avg-bar').style.width = avgScore + "%";
+      } else {
+        historyList.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ไม่พบข้อมูลประวัติ (เริ่มฝึกฝนเพื่อจัดเก็บบันทึกข้อมูล)</p>`;
+        document.getElementById('dash-avg-score').innerText = "0%"; document.getElementById('dash-avg-bar').style.width = "0%";
+      }
+
+      const filteredSessions = sessionsData.filter(s => {
+        const normS = normalizeKeys(s);
+        return Object.values(normS).some(val => String(val).trim().toLowerCase() === appState.user.code.toLowerCase());
+      });
+
+      if (filteredSessions.length > 0) {
+        sessionList.innerHTML = "";
+        filteredSessions.slice(-4).reverse().forEach(s => {
+          const normS = normalizeKeys(s);
+          const sessionItem = document.createElement('div');
+          sessionItem.className = "bg-purple-50 text-purple-950 p-2.5 rounded-xl border border-purple-100 flex flex-col gap-0.5 font-mono text-[11px]";
+          sessionItem.innerHTML = `
+            <p class="font-semibold text-indigo-900">📥 เข้า: <span class="text-slate-600">${healDateString(getFieldValue(normS, ['วัน เวลา เข้าระบบ', 'logintime', 'col_0'], "-"))}</span></p>
+            <p class="font-semibold text-rose-800">📤 ออก: <span class="text-slate-600">${getFieldValue(normS, ['เวลาออกจาก ระบบ', 'col_1'], "-") !== "-" ? healDateString(getFieldValue(normS, ['เวลาออกจาก ระบบ', 'col_1'])) : "กำลังใช้งาน"}</span></p>
+          `;
+          sessionList.appendChild(sessionItem);
+        });
+      } else { sessionList.innerHTML = `<p class="text-slate-400 text-center py-2">ยังไม่มีประวัติล็อกอินใน คราวด์</p>`; }
+    }
+
+    async function startPracticeMode(category) {
+      if (category === 'business' && !(appState.user && ALLOWED_BIZ_LEVELS.includes(appState.user.level.toUpperCase()))) {
+        alertToast("ระบบนี้จำกัดสิทธิ์เฉพาะรหัสผู้เรียนระดับ BIZ เท่านั้น!", "error"); return;
+      }
+
+      alertToast("กำลังประมวลผลข้อสอบจัดโครงสร้างตามเกณฑ์ย่อย...");
+      let allQuestions = []; const userLevel = appState.user.level.toUpperCase(); 
+
+      if (appState.settings.mode === 'sheets') {
+        allQuestions = await fetchSheetData(category === 'general' ? 'questions' : 'business_questions') || [];
+      } else { allQuestions = category === 'general' ? appState.db.questions : appState.db.business_questions; }
+
+      let filtered = allQuestions.filter(q => getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'col_0']).toUpperCase().trim() === userLevel);
+      if (filtered.length === 0) {
+        const cleanBaseLevel = userLevel.split('-')[0].substring(0, 2); 
+        filtered = allQuestions.filter(q => getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'col_0']).toUpperCase().includes(cleanBaseLevel));
+      }
+      if (filtered.length === 0) filtered = allQuestions;
+      if (filtered.length === 0) { alertToast("ไม่พบชุดแบบฝึกหัดในระบบขณะนี้!", "error"); return; }
+
+      function getQuestionMode(rawType) {
+        const clean = String(rawType || "").toLowerCase().replace(/\s+/g, '');
+        if (clean.includes('cloze') || clean.includes('blank') || clean.includes('choice')) return 'cloze';
+        if (clean.includes('scramble') || clean.includes('wordscramble')) return 'scramble';
+        if (clean.includes('listen') || clean.includes('listening') || clean.includes('dictation')) return 'listening';
+        if (clean.includes('speak') || clean.includes('speaking') || clean.includes('pronunciation')) return 'speaking';
+        return 'cloze';
+      }
+
+      const drawers = {
+        cloze: createPoolDrawer(filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'cloze'), allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'cloze')),
+        scramble: createPoolDrawer(filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'scramble'), allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'scramble')),
+        listening: createPoolDrawer(filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'listening'), allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'listening')),
+        speaking: createPoolDrawer(filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'speaking'), allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1'])) === 'speaking'))
+      };
+
+      const patternLayout = ['cloze', 'cloze', 'scramble', 'listening', 'listening_gap_4', 'speaking'];
+      const sessionQuestions = [];
+      
+      for (let i = 0; i < patternLayout.length; i++) {
+        let actualMode = patternLayout[i] === 'listening_gap_4' ? 'listening' : patternLayout[i];
+        let drawer = drawers[actualMode]; let baseQ = (drawer && drawer.hasQuestions) ? drawer.draw() : null;
+        if (!baseQ) {
+          const avModes = ['cloze', 'scramble', 'listening', 'speaking'].filter(m => drawers[m] && drawers[m].hasQuestions);
+          if (avModes.length > 0) baseQ = drawers[avModes[0]].draw();
+        }
+        if (!baseQ) continue; 
+
+        const normQ = normalizeKeys(baseQ);
+        const qText = getFieldValue(normQ, ['question', 'คำถาม', 'col_2'], "คำถามขาดหาย");
+        const cAns = getFieldValue(normQ, ['answer', 'คำตอบ', 'col_3'], "");
+        let resolvedCorrectAnswer = cAns ? cAns.trim() : "";
+        if (resolvedCorrectAnswer === "" || resolvedCorrectAnswer === "คำถามขาดหาย") { resolvedCorrectAnswer = qText; }
+
+        sessionQuestions.push({
+          level: getFieldValue(normQ, ['level', 'ระดับ', 'col_0'], userLevel), assignedMode: patternLayout[i],
+          questionText: patternLayout[i] === 'cloze' ? qText : getCompletedSentence(qText, resolvedCorrectAnswer),
+          correctAnswer: patternLayout[i] === 'cloze' ? resolvedCorrectAnswer : getCompletedSentence(qText, resolvedCorrectAnswer),
+          translation: getFieldValue(normQ, ['thai translation', 'thai', 'col_8'], "ไม่มีคำแปล"),
+          options: [getFieldValue(normQ, ['option1', 'col_4']), getFieldValue(normQ, ['option2', 'col_5']), getFieldValue(normQ, ['option3', 'col_6']), getFieldValue(normQ, ['option4', 'col_7'])].filter(o => o !== "").sort(() => 0.5 - Math.random())
+        });
+      }
+
+      if (sessionQuestions.length === 0) { alertToast("โครงสร้างข้อสอบในชีตไม่สมบูรณ์", "error"); return; }
+      appState.currentPractice = { category: category, questions: sessionQuestions, currentIndex: 0, score: 0, tempHistory: [], hasChecked: false, selectedAnswer: "", translationVisible: true, scrambleSelected: [] };
+
+      switchView('practice'); loadPracticeQuestion();
+    }
+
+    function loadPracticeQuestion() {
+      const pract = appState.currentPractice; const q = pract.questions[pract.currentIndex];
+      pract.hasChecked = false; pract.selectedAnswer = ""; pract.scrambleSelected = []; 
+      
+      document.getElementById('thai-translation-text').innerText = q.translation || "ไม่มีคำแปล";
+
+      const randomRelaxItem = RELAXING_IMAGES[Math.floor(Math.random() * RELAXING_IMAGES.length)];
+      const relaxImg = document.getElementById('practice-relax-img');
+      if (relaxImg) {
+        relaxImg.style.opacity = '0';
+        setTimeout(() => { relaxImg.src = randomRelaxItem.url; relaxImg.style.opacity = '1'; }, 150);
+      }
+      if (document.getElementById('practice-relax-caption')) document.getElementById('practice-relax-caption').innerText = randomRelaxItem.caption;
+      if (document.getElementById('practice-relax-caption-sub')) document.getElementById('practice-relax-caption-sub').innerText = randomRelaxItem.sub;
+
+      document.getElementById('practice-level-tag').innerText = q.level;
+      document.getElementById('practice-module-title').innerText = pract.category === 'general' ? 'แบบฝึกหัดปรับระดับ CEFR English' : 'แบบฝึกหัดภาษาอังกฤษธุรกิจ (Business)';
+      document.getElementById('practice-current-index').innerText = pract.currentIndex + 1;
+      document.getElementById('practice-total').innerText = pract.questions.length;
+      document.getElementById('temp-correct-count').innerText = pract.score;
+      document.getElementById('temp-total-count').innerText = pract.currentIndex;
+
+      resetStepIndicators();
+      document.getElementById(`step-${q.assignedMode}`).className = "py-2 border-b-2 font-semibold border-purple-500 text-purple-700";
+
+      const modeLabel = document.getElementById('question-mode-label');
+      const questionTextElem = document.getElementById('question-text');
+      const container = document.getElementById('interactive-mode-container');
+      container.innerHTML = "";
+      questionTextElem.className = "text-slate-950 font-semibold text-lg sm:text-xl md:text-2xl py-6 border-b-2 border-purple-150 leading-relaxed tracking-normal break-words text-center";
+
+      if (q.assignedMode === 'cloze') {
+        modeLabel.innerHTML = `1. CLOZE MULTIPLE CHOICE`; questionTextElem.innerText = q.questionText;
+        const grid = document.createElement('div'); grid.className = "grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4";
+        q.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = "p-5 bg-white border-2 border-slate-200 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold hover:border-purple-400 hover:bg-purple-50 transition text-left cursor-pointer shadow-sm active:scale-[0.98]";
+          btn.onclick = () => selectClozeAnswer(btn, opt); btn.innerText = opt; grid.appendChild(btn);
+        });
+        container.appendChild(grid);
+      } else if (q.assignedMode === 'scramble') {
+        modeLabel.innerHTML = `2. SENTENCE SCRAMBLE`;
+        questionTextElem.className = "text-purple-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-purple-100 text-center leading-relaxed";
+        questionTextElem.innerText = "เรียงคำศัพท์สลับด้านล่าง เพื่อแปลประโยคภาษาอังกฤษให้สมบูรณ์:";
+
+        const targetWords = q.correctAnswer;
+        const scrambledWords = [...targetWords.split(' ').filter(w => w.trim() !== "")].sort(() => 0.5 - Math.random());
+
+        const scrambleArea = document.createElement('div'); scrambleArea.className = "flex flex-col gap-4 mt-2";
+        const audioControlBox = document.createElement('div'); audioControlBox.className = "flex justify-between items-center mb-1 flex-wrap gap-2";
+
+        const playBtn = document.createElement('button');
+        playBtn.className = "px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer";
+        playBtn.onclick = () => playSpeech(targetWords, 1.0); playBtn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4"></i> ฟังประโยคเฉลย`;
+
+        const deleteLastBtn = document.createElement('button');
+        deleteLastBtn.className = "px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer";
+        deleteLastBtn.onclick = () => deleteLastScrambleWord(); deleteLastBtn.innerHTML = `<i data-lucide="delete" class="w-4 h-4"></i> ลบคำล่าสุด`;
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = "px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer";
+        clearBtn.onclick = () => resetScrambleAnswer(scrambledWords); clearBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i> ล้างคำตอบ`;
+
+        const leftGroup = document.createElement('div'); leftGroup.className = "flex gap-2 items-center"; leftGroup.appendChild(playBtn);
+        const rightGroup = document.createElement('div'); rightGroup.className = "flex gap-2 items-center ml-auto"; rightGroup.appendChild(deleteLastBtn); rightGroup.appendChild(clearBtn);
+
+        audioControlBox.appendChild(leftGroup); audioControlBox.appendChild(rightGroup); scrambleArea.appendChild(audioControlBox);
+
+        const resultBox = document.createElement('div'); resultBox.id = "scramble-result";
+        resultBox.className = "p-6 bg-white border-3 border-dashed border-purple-300 rounded-2xl min-h-[80px] flex flex-wrap gap-3 items-center text-lg sm:text-xl font-bold text-purple-955";
+        scrambleArea.appendChild(resultBox);
+
+        const poolBox = document.createElement('div'); poolBox.id = "scramble-words-pool"; poolBox.className = "flex flex-wrap gap-2.5";
+        scrambledWords.forEach((word) => {
+          const wBtn = document.createElement('button');
+          wBtn.className = "px-5 py-3.5 bg-purple-50 text-purple-800 border border-purple-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-purple-100 transition scramble-word-btn shadow-sm cursor-pointer active:scale-95";
+          wBtn.onclick = () => handleWordSelect(wBtn, word); wBtn.innerText = word; poolBox.appendChild(wBtn);
+        });
+
+        scrambleArea.appendChild(poolBox); container.appendChild(scrambleArea); safeCreateIcons();
+        setTimeout(() => playSpeech(targetWords, 1.0), 600);
+      } else if (q.assignedMode === 'listening') {
+        modeLabel.innerHTML = `3. LISTENING DICTATION`;
+        const listenSection = document.createElement('div'); listenSection.className = "flex flex-col gap-4 mt-2";
+        const hintDisplayBox = document.createElement('div'); hintDisplayBox.id = "listening-hint-display"; hintDisplayBox.className = "hidden text-xs bg-amber-50 text-amber-800 p-3 rounded-xl border border-amber-200 mt-2";
+        listenSection.appendChild(hintDisplayBox);
+
+        const audioControlBox = document.createElement('div'); audioControlBox.className = "flex flex-wrap gap-2.5 items-center";
+        const voiceText = q.correctAnswer;
+
+        const playBtn = document.createElement('button');
+        playBtn.className = "px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer";
+        playBtn.onclick = () => playSpeech(voiceText, 1.0); playBtn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4"></i> ฟังเสียงปกติ`;
+
+        const slowBtn = document.createElement('button');
+        slowBtn.className = "px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer";
+        slowBtn.onclick = () => playSpeech(voiceText, 0.5); slowBtn.innerHTML = `<i data-lucide="snail" class="w-4 h-4"></i> สโลว์ 50%`;
+
+        const hintBtn = document.createElement('button');
+        hintBtn.className = "px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer";
+        hintBtn.onclick = () => showListeningHints(voiceText); hintBtn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4"></i> แสดงคำใบ้`;
+
+        audioControlBox.appendChild(playBtn); audioControlBox.appendChild(slowBtn); audioControlBox.appendChild(hintBtn); listenSection.appendChild(audioControlBox);
+
+        questionTextElem.className = "text-purple-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-purple-100 text-center leading-relaxed";
+        questionTextElem.innerText = "ฟังเสียงสังเคราะห์ แล้วพิมพ์สะกดคำประโยคภาษาอังกฤษให้สมบูรณ์:";
+
+        const textInput = document.createElement('input'); textInput.type = "text"; textInput.id = "listening-text-input";
+        textInput.className = "w-full p-6 bg-white border-2 border-purple-300 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500 placeholder-slate-400 shadow-md text-center";
+        textInput.placeholder = "พิมพ์คำตอบตามที่ได้ยินที่นี่...";
+        textInput.oninput = (e) => {
+          pract.selectedAnswer = e.target.value.trim();
+          if (pract.selectedAnswer !== "") enableActionButton(); else disableActionButton();
+        };
+
+        listenSection.appendChild(textInput); container.appendChild(listenSection); safeCreateIcons();
+        setTimeout(() => playSpeech(voiceText, 1.0), 600);
+      } else if (q.assignedMode === 'listening_gap_4') {
+        modeLabel.innerHTML = `4. LISTENING GAP FILL (4 BLANKS)`;
+        questionTextElem.className = "text-purple-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-purple-100 text-center leading-relaxed";
+        questionTextElem.innerText = "ฟังเสียงพูด แล้วเลือกคำตอบที่ถูกต้องสำหรับช่องว่างทั้ง 4 ช่องสะกดประโยค:";
+
+        const gapSection = document.createElement('div'); gapSection.className = "flex flex-col gap-4 mt-2";
+        const voiceText = q.correctAnswer;
+
+        const audioControlBox = document.createElement('div'); audioControlBox.className = "flex flex-wrap gap-2.5 items-center justify-center mb-2";
+        const playBtn = document.createElement('button');
+        playBtn.className = "px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer";
+        playBtn.onclick = () => playSpeech(voiceText, 1.0); playBtn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4"></i> ฟังเสียงปกติ`;
+
+        const slowBtn = document.createElement('button');
+        slowBtn.className = "px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer";
+        slowBtn.onclick = () => playSpeech(voiceText, 0.5); slowBtn.innerHTML = `<i data-lucide="snail" class="w-4 h-4"></i> สโลว์ 50%`;
+
+        audioControlBox.appendChild(playBtn); audioControlBox.appendChild(slowBtn); gapSection.appendChild(audioControlBox);
+
+        const sentenceContainer = document.createElement('div');
+        sentenceContainer.className = "p-6 bg-white border border-purple-100 rounded-2xl shadow-sm text-center leading-loose text-base sm:text-lg font-bold text-slate-800 flex flex-wrap justify-center items-center gap-x-2 gap-y-3";
+
+        const words = voiceText.split(/\s+/);
+        if (!q.blankIndices) {
+          let availableIndices = [];
+          for (let i = 0; i < words.length; i++) { if (words[i].replace(/[^a-zA-Z]/g, "").length > 2) availableIndices.push(i); }
+          if (availableIndices.length < 4) availableIndices = Array.from({length: words.length}, (_, i) => i);
+          q.blankIndices = availableIndices.sort(() => 0.5 - Math.random()).slice(0, 4).sort((a, b) => a - b);
+        }
+
+        const selectStates = ["", "", "", ""]; pract.selectedAnswer = selectStates; 
+        words.forEach((word, index) => {
+          const blankIdx = q.blankIndices.indexOf(index);
+          if (blankIdx !== -1) {
+            const select = document.createElement('select'); select.id = `gap-select-${blankIdx}`;
+            select.className = "p-2 bg-purple-50 hover:bg-purple-100 border border-purple-300 rounded-xl text-sm font-bold text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm";
+            const correctClean = word.replace(/[^a-zA-Z]/g, "");
+            
+            const distractors = words.map(w => w.replace(/[^a-zA-Z]/g, "")).filter(w => w.toLowerCase() !== correctClean.toLowerCase() && w.length > 1);
+            const fallbackWords = ["about", "office", "system", "meeting", "project", "business", "company"];
+            while (distractors.length < 3) {
+              const rw = fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
+              if (!distractors.includes(rw)) distractors.push(rw);
+            }
+            
+            const allOptions = [correctClean, ...distractors.sort(() => 0.5 - Math.random()).slice(0, 3)].sort(() => 0.5 - Math.random());
+            const placeholderOpt = document.createElement('option'); placeholderOpt.value = ""; placeholderOpt.innerText = `[ ช่องว่างที่ ${blankIdx + 1} ]`; select.appendChild(placeholderOpt);
+
+            allOptions.forEach(opt => { const o = document.createElement('option'); o.value = opt; o.innerText = opt; select.appendChild(o); });
+            select.onchange = (e) => {
+              selectStates[blankIdx] = e.target.value; pract.selectedAnswer = selectStates.join(' ');
+              if (selectStates.every(val => val !== "")) enableActionButton(); else disableActionButton();
+            };
+            sentenceContainer.appendChild(select);
+          } else {
+            const textSpan = document.createElement('span'); textSpan.innerText = word; sentenceContainer.appendChild(textSpan);
+          }
+        });
+
+        gapSection.appendChild(sentenceContainer); container.appendChild(gapSection); safeCreateIcons();
+        setTimeout(() => playSpeech(voiceText, 1.0), 600);
+      } else if (q.assignedMode === 'speaking') {
+        modeLabel.innerHTML = `5. SPEAKING ASSESSMENT`;
+        questionTextElem.className = "text-purple-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-purple-100 text-center leading-relaxed";
+        questionTextElem.innerText = "กรุณากดไมโครโฟน เพื่อพูดออกเสียงประโยค:";
+
+        const speakSection = document.createElement('div'); speakSection.className = "flex flex-col items-center gap-4 mt-3";
+        const targetSpeech = q.correctAnswer;
+
+        const speechTargetBox = document.createElement('div');
+        speechTargetBox.className = "w-full p-6 bg-purple-50 border-2 border-purple-200 rounded-2xl text-center text-lg sm:text-xl md:text-2xl font-semibold text-purple-955 leading-relaxed shadow-md break-words";
+        speechTargetBox.innerText = `"${targetSpeech}"`; speakSection.appendChild(speechTargetBox);
+
+        const playSampleBtn = document.createElement('button');
+        playSampleBtn.className = "text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 cursor-pointer";
+        playSampleBtn.onclick = () => playSpeech(targetSpeech, 1.0); playSampleBtn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4"></i> ฟังตัวอย่างเสียง`;
+        speakSection.appendChild(playSampleBtn);
+
+        const micBox = document.createElement('div'); micBox.className = "flex flex-col items-center gap-2 mt-2";
+        const startMicBtn = document.createElement('button'); startMicBtn.id = "mic-record-btn";
+        startMicBtn.className = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition active:scale-[0.95] cursor-pointer";
+        startMicBtn.onclick = () => startSpeechRecognition(targetSpeech); startMicBtn.innerHTML = `<i data-lucide="mic" class="w-7 h-7"></i>`;
+        
+        const micStatus = document.createElement('span'); micStatus.id = "mic-status-txt"; micStatus.className = "text-xs text-slate-400 font-semibold"; micStatus.innerText = "คลิกปุ่มบันทึกเสียง เพื่อเริ่มต้นออกเสียงตอบโต้";
+        micBox.appendChild(startMicBtn); micBox.appendChild(micStatus); speakSection.appendChild(micBox);
+
+        const transcriptContainer = document.createElement('div'); transcriptContainer.id = "speech-transcript-box";
+        transcriptContainer.className = "hidden w-full p-3.5 bg-slate-100 rounded-xl text-center text-sm font-semibold text-slate-700 border border-slate-200";
+        speakSection.appendChild(transcriptContainer); container.appendChild(speakSection); safeCreateIcons();
+      }
+
+      const nextBtn = document.getElementById('next-question-btn'); nextBtn.disabled = true;
+      nextBtn.className = "bg-slate-300 text-slate-500 cursor-not-allowed font-bold px-6 py-3 rounded-xl text-sm transition flex items-center gap-1";
+      nextBtn.innerHTML = `<span>ตรวจสอบคำตอบ</span> <i data-lucide="check" class="w-4 h-4"></i>`; safeCreateIcons();
+    }
+
+    function resetScrambleAnswer(scrambledWords) {
+      appState.currentPractice.scrambleSelected = [];
+      if (document.getElementById('scramble-result')) document.getElementById('scramble-result').innerHTML = "";
+      const poolBox = document.getElementById('scramble-words-pool');
+      if (poolBox) {
+        poolBox.innerHTML = "";
+        scrambledWords.forEach((word) => {
+          const wBtn = document.createElement('button');
+          wBtn.className = "px-5 py-3.5 bg-purple-50 text-purple-800 border border-purple-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-purple-100 transition scramble-word-btn shadow-sm cursor-pointer active:scale-95";
+          wBtn.onclick = () => handleWordSelect(wBtn, word); wBtn.innerText = word; poolBox.appendChild(wBtn);
+        });
+      }
+      appState.currentPractice.selectedAnswer = ""; disableActionButton();
+    }
+
+    function handleWordSelect(btn, word) {
+      const pract = appState.currentPractice; if (!pract.scrambleSelected) pract.scrambleSelected = [];
+      const index = pract.scrambleSelected.findIndex(item => item.btn === btn);
+
+      if (index !== -1) {
+        btn.className = "px-5 py-3.5 bg-purple-50 text-purple-800 border border-purple-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-purple-100 transition scramble-word-btn shadow-sm cursor-pointer active:scale-95";
+        pract.scrambleSelected.splice(index, 1);
+      } else {
+        btn.className = "px-5 py-3.5 bg-purple-600 text-white font-bold rounded-xl text-lg sm:text-xl hover:bg-purple-100 transition scramble-word-btn shadow-sm cursor-pointer active:scale-95";
+        pract.scrambleSelected.push({ word: word, btn: btn });
+      }
+      renderScrambleResult();
+    }
+
+    function deleteLastScrambleWord() {
+      const pract = appState.currentPractice; if (!pract.scrambleSelected || pract.scrambleSelected.length === 0) return;
+      const lastItem = pract.scrambleSelected.pop();
+      if (lastItem && lastItem.btn) {
+        lastItem.btn.className = "px-5 py-3.5 bg-purple-50 text-purple-800 border border-purple-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-purple-100 transition scramble-word-btn shadow-sm cursor-pointer active:scale-95";
+      }
+      renderScrambleResult();
+    }
+
+    function renderScrambleResult() {
+      const pract = appState.currentPractice; const resultBox = document.getElementById('scramble-result'); if (!resultBox) return;
+      resultBox.innerHTML = "";
+
+      pract.scrambleSelected.forEach(({ word }) => {
+        const tag = document.createElement('span');
+        tag.className = "px-4 py-2.5 bg-violet-100 border border-violet-300 text-violet-850 font-black rounded-xl text-lg sm:text-xl shadow-sm";
+        tag.innerText = word; resultBox.appendChild(tag);
+      });
+
+      const assembledWords = pract.scrambleSelected.map(x => x.word);
+      pract.selectedAnswer = assembledWords.join(' ');
+      if (assembledWords.length > 0) enableActionButton(); else disableActionButton();
+    }
+
+    function playSpeech(text, rate = 1.0) {
+      if (!synth) return;
+      try {
+        synth.cancel(); const cleanText = String(text || "").trim(); if (!cleanText || cleanText === "คำถามขาดหาย") return;
+        const wave = document.getElementById('speaking-wave-anim'); if (wave) wave.classList.remove('hidden');
+        if (synth.paused) synth.resume();
+
+        currentUtterance = new SpeechSynthesisUtterance(cleanText);
+        currentUtterance.lang = 'en-US'; currentUtterance.rate = rate;
+        
+        lastSpeechGender = lastSpeechGender === 'female' ? 'male' : 'female';
+        const englishVoices = synth.getVoices().filter(v => v.lang.startsWith('en'));
+        let selectedVoice = (lastSpeechGender === 'female') ? englishVoices.find(v => v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha')) : englishVoices.find(v => v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('male'));
+
+        if (!selectedVoice && englishVoices.length > 0) selectedVoice = englishVoices[0];
+        if (selectedVoice) currentUtterance.voice = selectedVoice;
+        currentUtterance.pitch = lastSpeechGender === 'female' ? 1.2 : 0.85;
+
+        currentUtterance.onend = () => { if (wave) wave.classList.add('hidden'); };
+        currentUtterance.onerror = () => { if (wave) wave.classList.add('hidden'); };
+        synth.speak(currentUtterance);
+      } catch (err) {}
+    }
+
+    function showListeningHints(sentence) {
+      const words = sentence.trim().split(' ').filter(w => w.trim() !== ""); if (words.length < 1) return;
+      const startHint = words[0].length > 3 ? words[0].substring(0, 3) + "..." : words[0];
+      let hintText = `🌟 <strong>คำใบ้:</strong> เริ่มต้นด้วย "<strong>${startHint}</strong>"`;
+      
+      if (words.length > 1) {
+        const mw = words[Math.floor(words.length / 2)];
+        hintText += ` และมีคำกลางคือ "<strong>${mw.length > 3 ? mw.substring(0, 3) + "..." : mw}</strong>"`;
+      }
+      const hintElem = document.getElementById('listening-hint-display');
+      if (hintElem) { hintElem.innerHTML = hintText; hintElem.classList.remove('hidden'); }
+    }
+
+    let SpeechRecognition = null;
+    try { if (typeof window !== 'undefined') SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; } catch (e) {}
+
+    function startSpeechRecognition(targetText) {
+      if (!SpeechRecognition) {
+        const mockResponse = prompt("กรุณาพิมพ์จำลองออกเสียงเพื่อตอบ:");
+        if (mockResponse) handleSpeechResult(mockResponse, targetText); return;
+      }
+      try {
+        const recognition = new SpeechRecognition(); recognition.lang = 'en-US'; recognition.interimResults = false;
+        const micBtn = document.getElementById('mic-record-btn'); const micStatus = document.getElementById('mic-status-txt');
+
+        micBtn.className = "w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg transition animate-pulse cursor-pointer";
+        if (micStatus) micStatus.innerText = "🎙️ กำลังฟังสำเนียงเสียงพูดของคุณ...";
+
+        recognition.onresult = (event) => { handleSpeechResult(event.results[0][0].transcript, targetText); };
+        recognition.onerror = () => {
+          micBtn.className = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition cursor-pointer";
+          if (micStatus) micStatus.innerText = "❌ ตรวจจับล้มเหลว กรุณากดพูดใหม่อีกครั้ง";
+        };
+        recognition.onend = () => { micBtn.className = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition cursor-pointer"; };
+        recognition.start();
+      } catch (err) {
+        const mr = prompt("พิมพ์เลียนประโยคออกเสียงเพื่อส่งคะแนน:"); if (mr) handleSpeechResult(mr, targetText);
+      }
+    }
+
+    function handleSpeechResult(speechText, targetText) {
+      document.getElementById('speech-transcript-box').innerText = `เสียงที่ตรวจได้: "${speechText}"`;
+      document.getElementById('speech-transcript-box').classList.remove('hidden');
+      appState.currentPractice.selectedAnswer = speechText;
+      if (document.getElementById('mic-status-txt')) document.getElementById('mic-status-txt').innerText = "✓ ประมวลผลเสียงพูดสำเร็จ";
+      enableActionButton();
+    }
+
+    function selectClozeAnswer(btnElement, val) {
+      btnElement.parentElement.querySelectorAll('button').forEach(b => {
+        b.className = "p-5 bg-white border-2 border-slate-200 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold hover:border-purple-400 hover:bg-purple-50 transition text-left cursor-pointer shadow-sm active:scale-[0.98]";
+      });
+      btnElement.className = "p-5 bg-purple-100 border-2 border-purple-600 text-purple-950 rounded-2xl text-lg sm:text-xl md:text-2xl font-black text-left cursor-pointer shadow-md transform scale-[1.01] transition-all duration-200";
+      appState.currentPractice.selectedAnswer = val; enableActionButton();
+    }
+
+    function resetStepIndicators() {
+      ['cloze', 'scramble', 'listening', 'listening_gap_4', 'speaking'].forEach(st => {
+        if (document.getElementById(`step-${st}`)) document.getElementById(`step-${st}`).className = "py-2 border-b-2 font-semibold border-slate-200 text-slate-400";
+      });
+    }
+
+    function evaluateAndNext() {
+      const pract = appState.currentPractice; const q = pract.questions[pract.currentIndex];
+      const actionBtn = document.getElementById('next-question-btn');
+
+      if (!pract.hasChecked) {
+        pract.hasChecked = true; let isCorrect = false;
+        const similarity = calculateSimilarityRatio(pract.selectedAnswer, q.correctAnswer);
+        const similarityPct = Math.round(similarity * 100);
+
+        if (q.assignedMode === 'cloze' || q.assignedMode === 'scramble') { isCorrect = cleanTextForComparison(pract.selectedAnswer) === cleanTextForComparison(q.correctAnswer); }
+        else if (q.assignedMode === 'listening_gap_4') {
+          const words = q.correctAnswer.split(/\s+/); let cc = 0;
+          q.blankIndices.forEach((blankWordIndex, blankIdx) => {
+            const ch = (pract.selectedAnswer || "").split(' ')[blankIdx] || "";
+            if (ch.toLowerCase() === words[blankWordIndex].replace(/[^a-zA-Z]/g, "").toLowerCase()) cc++;
+          });
+          q.gapCorrectCount = cc; isCorrect = (cc >= 3);  
+        } else { isCorrect = similarity >= 0.70; }
+
+        if (isCorrect) { pract.score++; alertToast(`ยอดเยี่ยม! ผ่านเกณฑ์ประเมินข้อนี้เรียบร้อย`, "success"); }
+        else { alertToast(`ยังไม่ถูกต้องแม่นยำต่ำกว่าเกณฑ์การประเมิน`, "error"); }
+
+        showCorrectAnswerUI(isCorrect, q.correctAnswer, similarityPct, q.assignedMode);
+        actionBtn.innerHTML = `<span>ข้อถัดไป</span> <i data-lucide="chevron-right" class="w-4 h-4"></i>`; safeCreateIcons();
+      } else {
+        pract.currentIndex++;
+        if (pract.currentIndex < pract.questions.length) { loadPracticeQuestion(); }
+        else { concludePracticeRound(); }
+      }
+    }
+
+    function showCorrectAnswerUI(isCorrect, rightAnswer, similarityPct, mode) {
+      const container = document.getElementById('interactive-mode-container');
+      const feedbackBox = document.createElement('div');
+      feedbackBox.className = `p-4 rounded-xl mt-4 border font-semibold text-xs ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`;
+      
+      let passCriteriaInfo = (mode === 'cloze' || mode === 'scramble') ? "เกณฑ์ผ่าน: จำเป็นต้องพิมพ์ให้ถูกต้องแม่นยำ 100%" : (mode === 'listening_gap_4') ? "เกณฑ์ผ่าน: ตอบถูกอย่างน้อย 3 ใน 4 ช่องว่าง (ความแม่นยำสะสม ≥ 75%)" : "เกณฑ์ผ่าน: ค่าสอดคล้องของประโยค ≥ 70%";
+      let scoreDetailText = (mode === 'listening_gap_4') ? `คุณตอบถูกต้องทั้งหมด: ${appState.currentPractice.questions[appState.currentPractice.currentIndex].gapCorrectCount || 0} จาก 4 ช่องว่าง` : `อัตราเทียบเคียงจริงของคุณ: ${similarityPct}%`;
+
+      feedbackBox.innerHTML = `
+        <div class="flex flex-col gap-1 text-sm">
+          <p class="font-extrabold text-base">${isCorrect ? '✓ ผ่านเกณฑ์ประเมินทักษะ' : '✗ คำตอบเบี่ยงเบนจากเกณฑ์ขั้นต่ำ'}</p>
+          <p class="text-slate-500">${scoreDetailText} (${passCriteriaInfo})</p>
+          <p class="mt-1 text-slate-600 font-bold">เฉลยประโยคเต็ม: <strong class="text-slate-900">"${rightAnswer}"</strong></p>
+        </div>
+      `;
+      container.appendChild(feedbackBox);
+    }
+
+    async function concludePracticeRound() {
+      const pract = appState.currentPractice; const finalScorePct = Math.round((pract.score / pract.questions.length) * 100);
+      let currentFullLevel = appState.user.level.toUpperCase(); let remarkMsg = ""; let toastStatus = "info";
+
+      const cefrOrderSub = ["A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2", "C2.1", "C2.2"];
+      const isBizSuffix = currentFullLevel.includes('-BIZ');
+      let currentIdx = cefrOrderSub.indexOf(currentFullLevel.replace('-BIZ', '').trim());
+      if (currentIdx === -1) currentIdx = 0; const oldIdx = currentIdx;
+
+      if (finalScorePct < 50) { if (currentIdx > 0) { currentIdx--; remarkMsg = `ปรับระดับลดลงเนื่องจากคะแนนต่ำกว่าเกณฑ์ (${finalScorePct}%)`; toastStatus = "error"; } }
+      else if (finalScorePct >= 80) { if (currentIdx < cefrOrderSub.length - 1) { currentIdx++; remarkMsg = `ปรับระดับเพิ่มขึ้นเนื่องจากคะแนนสูงกว่าเกณฑ์ (${finalScorePct}%)`; toastStatus = "success"; } }
+      else { remarkMsg = `คงระดับเดิมเนื่องจากคะแนนอยู่ในเกณฑ์ปานกลาง (${finalScorePct}%)`; }
+
+      const updatedLevel = cefrOrderSub[currentIdx] + (isBizSuffix ? "-BIZ" : "");
+      appState.user.level = updatedLevel; localStorage.setItem('cefr_user_session', JSON.stringify(appState.user));
+
+      if (document.getElementById('dash-cefr-badge')) document.getElementById('dash-cefr-badge').innerText = updatedLevel;
+      if (document.getElementById('user-display-level')) document.getElementById('user-display-level').innerText = updatedLevel;
+
+      await saveProgressToGAS(pract.category === 'general' ? 'แบบฝึกหัดทั่วไป' : 'แบบฝึกหัดธุรกิจ', finalScorePct, updatedLevel, appState.user.code, remarkMsg);
+
+      if (currentIdx > oldIdx) { alertToast(`🚀 ผ่านเกณฑ์ ${finalScorePct}%! ระบบปรับระดับขึ้นเป็น: ${updatedLevel}`, "success"); }
+      else if (currentIdx < oldIdx) { alertToast(`🔔 คะแนน ${finalScorePct}% ต่ำกว่าเกณฑ์ ระบบปรับระดับลงเป็น: ${updatedLevel}`, "error"); }
+      else { alertToast(`🔄 คะแนน ${finalScorePct}% อยู่ในเกณฑ์มาตรฐาน คงระดับเดิมไว้ที่: ${updatedLevel}`, "info"); }
+
+      setTimeout(() => { startPracticeMode(pract.category); }, 1500);
+    }
+
+    function closeLevelModal() { document.getElementById('level-modal').classList.add('hidden'); startPracticeMode(appState.currentPractice.category); }
+    function quitPracticePrompt() { document.getElementById('custom-confirm-modal').classList.remove('hidden'); safeCreateIcons(); }
+    function closeCustomConfirmModal() { document.getElementById('custom-confirm-modal').classList.add('hidden'); }
+    function confirmQuitPractice() { closeCustomConfirmModal(); setupDashboardView(); }
+
+    function openDialogueSelector() { switchView('dialogue'); switchDialogueTab('general'); }
+
+    function populateDialogueDropdown() {
+      const dropdown = document.getElementById('dialogue-selector-dropdown'); if (!dropdown) return;
+      dropdown.innerHTML = '<option value="">-- กรุณาคลิกเลือกสถานการณ์ (30 ทั่วไป + 100 ธุรกิจ) --</option>';
+
+      const groupGeneral = document.createElement('optgroup'); groupGeneral.label = "สถานการณ์ทั่วไป 30 บท";
+      DIALOGUES.general.forEach(dlg => {
+        const opt = document.createElement('option'); opt.value = `general:${dlg.id}`; opt.innerText = `${dlg.avatar} ${dlg.title} - ${dlg.subtitle}`;
+        groupGeneral.appendChild(opt);
+      });
+      dropdown.appendChild(groupGeneral);
+
+      const groupBusiness = document.createElement('optgroup'); groupBusiness.label = "สถานการณ์ธุรกิจ 100 บท (BIZ Only)";
+      const hasBizAccess = ALLOWED_BIZ_LEVELS.includes(appState.user ? appState.user.level.toUpperCase() : "");
+
+      DIALOGUES.business.forEach(dlg => {
+        const opt = document.createElement('option'); opt.value = `business:${dlg.id}`; opt.innerText = `${dlg.avatar} ${dlg.title} - ${dlg.subtitle}${hasBizAccess ? "" : " 🔒"}`;
+        groupBusiness.appendChild(opt);
+      });
+      dropdown.appendChild(groupBusiness);
+    }
+
+    function handleDialogueDropdownChange(selectElement) {
+      const val = selectElement.value; if (!val) return;
+      const [tab, id] = val.split(':');
+      if (tab === 'business' && !ALLOWED_BIZ_LEVELS.includes(appState.user ? appState.user.level.toUpperCase() : "")) { alertToast("🔒 จำกัดสิทธิ์เฉพาะกลุ่มผู้ใช้รหัส BIZ เท่านั้น", "warning"); selectElement.value = ""; return; }
+      startDialogueSession(parseInt(id), tab);
+    }
+
+    function switchDialogueTab(tabName) {
+      if (tabName === 'business' && !ALLOWED_BIZ_LEVELS.includes(appState.user ? appState.user.level.toUpperCase() : "")) { alertToast("🔒 จำกัดสิทธิ์เฉพาะกลุ่มผู้ใช้รหัส BIZ เท่านั้น", "warning"); return; }
+      appState.activeDialogue.tab = tabName;
+      
+      document.getElementById('tab-dlg-general').className = tabName === 'general' ? "px-4 py-2 border-b-2 border-purple-600 font-bold text-purple-700" : "px-4 py-2 border-b-2 border-transparent text-slate-500 font-bold hover:text-purple-600";
+      document.getElementById('tab-dlg-business').className = tabName === 'business' ? "px-4 py-2 border-b-2 border-purple-600 font-bold text-purple-700" : "px-4 py-2 border-b-2 border-transparent text-slate-500 font-bold hover:text-purple-600";
+      renderDialogueList();
+    }
+
+    function renderDialogueList() {
+      const listContainer = document.getElementById('dialogue-items-list'); listContainer.innerHTML = "";
+      const tab = appState.activeDialogue.tab;
+      const hasBizAccess = ALLOWED_BIZ_LEVELS.includes(appState.user ? appState.user.level.toUpperCase() : "");
+
+      DIALOGUES[tab].forEach(dlg => {
+        const itemCard = document.createElement('div');
+        itemCard.className = "p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-purple-400 transition cursor-pointer flex flex-col justify-between";
+        itemCard.onclick = () => { if (tab === 'business' && !hasBizAccess) { alertToast("🔒 จำกัดสิทธิ์เฉพาะกลุ่มผู้ใช้รหัส BIZ", "warning"); return; } startDialogueSession(dlg.id, tab); };
+        itemCard.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-lg shrink-0">${dlg.avatar}</div>
+            <div>
+              <h5 class="font-bold text-slate-800 text-xs sm:text-sm line-clamp-1">${dlg.title}</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">${dlg.subtitle}</p>
+            </div>
+          </div>
+          <div class="mt-4 text-right"><span class="text-[10px] bg-purple-100 text-purple-800 font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1">เข้าสนทนา <i data-lucide="messages-square" class="w-3.5 h-3.5"></i></span></div>
+        `;
+        listContainer.appendChild(itemCard);
+      });
+      safeCreateIcons();
+    }
+
+    function startDialogueSession(dlgId, tab) {
+      if (tab === 'business' && !ALLOWED_BIZ_LEVELS.includes(appState.user ? appState.user.level.toUpperCase() : "")) { alertToast("🔒 จำกัดสิทธิ์เฉพาะกลุ่มผู้ใช้รหัส BIZ", "warning"); return; }
+      const dlg = DIALOGUES[tab].find(d => d.id === dlgId); if (!dlg) return;
+
+      appState.activeDialogue = { id: dlgId, tab: tab, steps: dlg.steps, currentStepId: 1, chatHistory: [], scoreRecords: [] };
+      document.getElementById('dialogue-selection-grid').classList.add('hidden');
+      if (document.getElementById('dialogue-chat-interface')) document.getElementById('dialogue-chat-interface').classList.remove('hidden');
+      if (document.getElementById('dialogue-selector-dropdown')) document.getElementById('dialogue-selector-dropdown').value = `${tab}:${dlgId}`;
+
+      document.getElementById('chat-title').innerText = dlg.title;
+      document.getElementById('chat-sub-title').innerText = dlg.subtitle;
+      document.getElementById('chat-companion-avatar').innerText = dlg.avatar;
+      document.getElementById('chat-message-history').innerHTML = "";
+      document.getElementById('dialogue-live-match-feedback').innerText = "";
+      
+      loadDialogueStep();
+    }
+
+    function loadDialogueStep() {
+      const act = appState.activeDialogue; const step = act.steps.find(s => s.id === act.currentStepId);
+      if (!step) { concludeDialogue(); return; }
+
+      act.chatHistory.push({ sender: 'ai', text: step.ai });
+      appendChatMessage('ai', step.ai); playSpeech(step.ai, 1.0);
+
+      const optionsBox = document.getElementById('chat-user-options'); optionsBox.innerHTML = "";
+      step.options.forEach((opt) => {
+        const optionWrapper = document.createElement('div'); optionWrapper.className = "flex items-center gap-2 w-full p-1 border border-purple-100 rounded-xl bg-slate-50/50 hover:bg-purple-50/50 transition duration-150";
+        const textContent = document.createElement('div'); textContent.className = "flex-grow p-2 text-xs font-semibold text-slate-800"; textContent.innerText = opt.text;
+
+        const micBtn = document.createElement('button'); micBtn.className = "bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-lg transition active:scale-95 flex items-center justify-center cursor-pointer";
+        micBtn.innerHTML = `<i data-lucide="mic" class="w-4 h-4"></i>`; micBtn.title = "กดไมค์แล้วพูดประโยคนี้";
+        micBtn.onclick = () => recordUserDialogueOption(opt.text, opt.next, micBtn);
+
+        optionWrapper.appendChild(textContent); optionWrapper.appendChild(micBtn); optionsBox.appendChild(optionWrapper);
+      });
+      safeCreateIcons();
+    }
+
+    function recordUserDialogueOption(targetSentence, nextStepId, micButtonElement) {
+      if (!SpeechRecognition) {
+        const mr = prompt(`กรุณาเลียนเสียงพูดประโยคนี้:\n"${targetSentence}"`);
+        if (mr) evaluateSpokenDialogue(mr, targetSentence, nextStepId); return;
+      }
+      try {
+        const recognition = new SpeechRecognition(); recognition.lang = 'en-US'; recognition.interimResults = false;
+        const originalInner = micButtonElement.innerHTML;
+        micButtonElement.className = "bg-rose-500 text-white p-2.5 rounded-lg animate-pulse flex items-center justify-center cursor-pointer";
+        micButtonElement.innerHTML = `<span class="animate-ping w-2.5 h-2.5 rounded-full bg-white"></span>`;
+        
+        if (document.getElementById('dialogue-live-match-feedback')) { document.getElementById('dialogue-live-match-feedback').className = "text-xs font-semibold text-slate-500"; document.getElementById('dialogue-live-match-feedback').innerText = "🎙️ กำลังฟังสำเนียงออกเสียงพูดของคุณ..."; }
+
+        recognition.onresult = (event) => { evaluateSpokenDialogue(event.results[0][0].transcript, targetSentence, nextStepId); };
+        recognition.onerror = () => {
+          if (document.getElementById('dialogue-live-match-feedback')) document.getElementById('dialogue-live-match-feedback').innerText = "❌ ฟังเสียงล้มเหลว กรุณากดพูดใหม่อีกครั้ง";
+          micButtonElement.className = "bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-lg transition flex items-center justify-center cursor-pointer"; micButtonElement.innerHTML = originalInner; safeCreateIcons();
+        };
+        recognition.onend = () => { micButtonElement.className = "bg-purple-600 hover:bg-purple-700 text-white p-2.5 rounded-lg transition flex items-center justify-center cursor-pointer"; micButtonElement.innerHTML = originalInner; safeCreateIcons(); };
+        recognition.start();
+      } catch (err) {
+        const mr = prompt(`กรุณาพิมพ์คำตอบเพื่อจำลองเสียงพูดประโยคนี้:\n"${targetSentence}"`); if (mr) evaluateSpokenDialogue(mr, targetSentence, nextStepId);
+      }
+    }
+
+    function evaluateSpokenDialogue(spokenText, expectedText, nextStepId) {
+      const scorePct = Math.round(calculateSimilarityRatio(spokenText, expectedText) * 100);
+      appState.activeDialogue.scoreRecords.push(scorePct);
+      if (document.getElementById('dialogue-live-match-feedback')) { document.getElementById('dialogue-live-match-feedback').className = "text-xs font-bold text-purple-700"; document.getElementById('dialogue-live-match-feedback').innerText = `✓ สำเนียงระดับ: ${scorePct}%`; }
+      alertToast(`ประเมินสำเนียงเรียบร้อย ได้คะแนน ${scorePct}%`, "success"); selectDialogueOption(expectedText, nextStepId);
+    }
+
+    function selectDialogueOption(spokenText, nextStepId) {
+      appState.activeDialogue.chatHistory.push({ sender: 'user', text: spokenText }); appendChatMessage('user', spokenText);
+      setTimeout(() => { appState.activeDialogue.currentStepId = nextStepId; loadDialogueStep(); }, 1000);
+    }
+
+    function appendChatMessage(sender, text) {
+      const container = document.getElementById('chat-message-history'); const msg = document.createElement('div');
+      if (sender === 'ai') {
+        msg.className = "flex gap-2.5 items-start self-start max-w-[85%]";
+        msg.innerHTML = `
+          <div class="w-10 h-10 rounded-full bg-slate-900 border-2 border-amber-400 flex items-center justify-center shrink-0 font-bold text-base shadow-sm">🤖</div>
+          <div class="bg-indigo-950 text-white p-4 rounded-2xl rounded-tl-none text-xs leading-relaxed shadow-md border border-indigo-900">
+            <span class="text-[9px] font-black uppercase text-amber-300 tracking-widest block mb-1">คู่สนทนา AI (Host Agent)</span>
+            <p class="font-medium">${text}</p>
+            <button onclick="playSpeech('${text.replace(/'/g, "\\'")}', 1.0)" class="text-[10px] text-indigo-200 hover:text-white mt-2 flex items-center gap-1 font-bold cursor-pointer"><i data-lucide="volume-2" class="w-3.5 h-3.5"></i> ฟังสำเนียงออกเสียง</button>
+          </div>
+        `;
+      } else {
+        msg.className = "flex gap-2.5 items-start self-end max-w-[85%] justify-end";
+        msg.innerHTML = `
+          <div class="bg-purple-600 text-white p-4 rounded-2xl rounded-tr-none text-xs leading-relaxed shadow-md border border-purple-500 font-semibold">
+            <span class="text-[9px] font-black uppercase text-yellow-300 tracking-widest block mb-1 text-right">ตัวคุณ (Learner Response)</span>
+            <p class="text-right">${text}</p>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-purple-100 border-2 border-purple-500 flex items-center justify-center shrink-0 font-bold text-base shadow-sm">👤</div>
+        `;
+      }
+      container.appendChild(msg); container.scrollTop = container.scrollHeight; safeCreateIcons();
+    }
+
+    function concludeDialogue() {
+      const container = document.getElementById('chat-message-history'); const scores = appState.activeDialogue.scoreRecords;
+      let avgScore = scores.length > 0 ? Math.round(scores.reduce((acc, curr) => acc + curr, 0) / scores.length) : 0;
+
+      const endAlert = document.createElement('div'); endAlert.className = "p-5 bg-emerald-50 border-2 border-emerald-300 text-emerald-950 text-xs rounded-2xl shadow-md mt-4 flex flex-col gap-2";
+      endAlert.innerHTML = `<p class="text-base font-bold text-emerald-800 flex items-center justify-center gap-1">🎉 การสนทนาสำเร็จเสร็จสิ้น!</p><div class="p-3.5 bg-white rounded-xl border border-emerald-200 text-center"><span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">คะแนนสำเนียงการตอบโต้อิงเกณฑ์เฉลี่ย</span><span class="text-2xl font-black text-emerald-600 block mt-0.5">${avgScore}%</span></div>`;
+      container.appendChild(endAlert); container.scrollTop = container.scrollHeight;
+
+      document.getElementById('chat-user-options').innerHTML = `<button onclick="closeDialogueChat()" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm transition text-center shadow-md cursor-pointer">เสร็จสิ้นและออกจากการสนทนา</button>`;
+    }
+
+    function closeDialogueChat() {
+      if (document.getElementById('dialogue-chat-interface')) document.getElementById('dialogue-chat-interface').classList.add('hidden');
+      document.getElementById('dialogue-selection-grid').classList.remove('hidden');
+    }
+
+    async function fetchSheetDataViaJSONP(sheetName) {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'gviz_jsonp_' + Math.random().toString(36).substring(2, 15);
+        const script = document.createElement('script');
+        script.src = `https://docs.google.com/spreadsheets/d/${appState.settings.sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}&tq=`;
+        const tid = setTimeout(() => { cl(); reject(new Error("หมดเวลาเชื่อมต่อ")); }, 8000);
+        function cl() { clearTimeout(tid); if (script.parentNode) script.parentNode.removeChild(script); try { delete window[callbackName]; } catch(e) { window[callbackName] = undefined; } }
+        window[callbackName] = function(d) { cl(); if (d && d.status === "error") { reject(new Error(d.errors?.[0]?.detailed_message || "Sheets API Error")); return; } resolve(parseGVizData(d)); };
+        script.onerror = () => { cl(); reject(new Error("แชร์ชีตผิดพลาด")); };
+        document.body.appendChild(script);
+      });
+    }
+
+    function activateSecurityShield() {
+      document.addEventListener('contextmenu', e => { e.preventDefault(); alertToast("🔒 ระบบป้องกัน: ลิขสิทธิ์เฉพาะของระบบ ไม่อนุญาตให้กดคลิกขวา", "warning"); });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && ['I','i','J','j'].includes(e.key)) { e.preventDefault(); return false; }
+        if (e.ctrlKey && ['U','u','S','s','A','a'].includes(e.key)) { e.preventDefault(); return false; }
+        if (e.ctrlKey && ['P','p'].includes(e.key)) { e.preventDefault(); alertToast("🔒 ระบบป้องกัน: ไม่อนุญาตให้พิมพ์หรือเซฟ PDF", "error"); return false; }
+        if (e.ctrlKey && ['C','c'].includes(e.key)) { e.preventDefault(); alertToast("🔒 ระบบป้องกัน: ไม่อนุญาตให้คัดลอกเนื้อหา", "warning"); return false; }
+      });
+    }
+
+    function enableActionButton() {
+      const btn = document.getElementById('next-question-btn');
+      if (btn) { btn.disabled = false; btn.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition shadow-sm flex items-center gap-1 cursor-pointer"; }
+    }
+    function disableActionButton() {
+      const btn = document.getElementById('next-question-btn');
+      if (btn) { btn.disabled = true; btn.className = "bg-slate-300 text-slate-500 cursor-not-allowed font-bold px-6 py-3 rounded-xl text-sm transition flex items-center gap-1"; }
+    }
+
+    function createDialogueArray(themes, startId, isBusiness = false) {
+      return themes.map((theme, idx) => ({
+        id: startId + idx, title: `${idx + 1}. ${theme.t}`, subtitle: theme.sub, avatar: theme.av,
+        steps: [
+          { id: 1, ai: theme.text1, options: [{ text: theme.opt1, next: 2 }, { text: theme.opt2, next: 2 }] },
+          { id: 2, ai: "That sounds very reasonable. Let's proceed with this direction.", options: [{ text: "Great. Let's make it happen.", next: -1 }] }
+        ]
+      }));
+    }
+  </script>
+</body>
+</html>
