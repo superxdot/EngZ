@@ -2018,13 +2018,30 @@
         questionTextElem.className = "text-purple-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-purple-100 text-center leading-relaxed";
         questionTextElem.innerText = "ฟังเสียงสังเคราะห์ แล้วพิมพ์สะกดคำประโยคภาษาอังกฤษให้สมบูรณ์:";
 
-        const textInput = document.createElement('input'); textInput.type = "text"; textInput.id = "listening-text-input";
-        textInput.className = "w-full p-6 bg-white border-2 border-purple-300 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500 placeholder-slate-400 shadow-md text-center";
-        textInput.placeholder = "พิมพ์คำตอบตามที่ได้ยินที่นี่...";
-        textInput.oninput = (e) => {
-          pract.selectedAnswer = e.target.value.trim();
-          if (pract.selectedAnswer !== "") enableActionButton(); else disableActionButton();
-        };
+        //-------------------------------------------------------------------
+       // const textInput = document.createElement('input'); textInput.type = "text"; textInput.id = "listening-text-input";
+       // textInput.className = "w-full p-6 bg-white border-2 border-purple-300 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500 placeholder-slate-400 shadow-md text-center";
+       //  textInput.placeholder = "พิมพ์คำตอบตามที่ได้ยินที่นี่...";
+       // textInput.oninput = (e) => {
+       //   pract.selectedAnswer = e.target.value.trim();
+       //   if (pract.selectedAnswer !== "") enableActionButton(); else disableActionButton();
+       // };
+        //------------------------------------------------------------------
+              
+                     // โค้ดใหม่ที่ปรับเป็น Textarea ความสูง 2 บรรทัด (rows="2") พร้อมจัดกึ่งกลางข้อความ
+            const textInput = document.createElement('textarea'); 
+            textInput.id = "listening-text-input";
+            textInput.rows = 2; // กำหนดให้สูง 2 บรรทัด
+            textInput.className = "w-full p-4 bg-white border-2 border-purple-300 rounded-2xl text-lg sm:text-xl md:text-2xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500 placeholder-slate-400 shadow-md text-center resize-none custom-scrollbar";
+            textInput.placeholder = "พิมพ์คำตอบตามที่ได้ยินที่นี่...";
+            textInput.oninput = (e) => { 
+            pract.selectedAnswer = e.target.value.trim();
+            if (pract.selectedAnswer !== "") enableActionButton(); else disableActionButton();
+           };
+
+
+
+
 
         listenSection.appendChild(textInput); container.appendChild(listenSection); safeCreateIcons();
         setTimeout(() => playSpeech(voiceText, 1.0), 600);
