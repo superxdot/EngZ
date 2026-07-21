@@ -2594,6 +2594,43 @@
         ]
       }));
     }
+
+//====================================   Close browser / tab and logout ==============================
+
+// ฟังก์ชันส่งบันทึก Logout อัตโนมัติเมื่อปิดหน้าเว็บ
+function autoLogSessionLogout() {
+  if (appState.user && appState.user.code && appState.settings.gasUrl) {
+    const url = appState.settings.gasUrl;
+    const payload = JSON.stringify({
+      sheet: "sessions",
+      action: "logout",
+      userCode: appState.user.code,
+      spreadsheetId: appState.settings.sheetId
+    });
+
+    // ใช้ sendBeacon เพื่อให้ส่งข้อมูลสำเร็จแม้หน้าเว็บจะถูกปิดไปแล้ว
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, payload);
+    }
+  }
+}
+
+// ตรวจจับเมื่อผู้ใช้เปลี่ยนหน้า สลับแท็บ หรือปิดหน้าเว็บ
+window.addEventListener('pagehide', autoLogSessionLogout);
+
+
+
+
+//=====================================================================================================
+
+
+
+
+
+
+
+
+
   </script>
 </body>
 </html>
