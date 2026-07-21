@@ -2619,10 +2619,24 @@ function autoLogSessionLogout() {
 window.addEventListener('pagehide', autoLogSessionLogout);
 
 
-
-
 //=====================================================================================================
+let idleTimer;
 
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  // ตั้งเวลา 15 นาที (15 * 60 * 1000 ms)
+  idleTimer = setTimeout(() => {
+    alertToast("หมดเวลาการใช้งานเนื่องจากไม่มีกิจกรรม เคลียร์เซสชัน...", "warning");
+    handleLogout(); // เรียกใช้ฟังก์ชัน Logout เดิมของระบบ
+  }, 15 * 60 * 1000);
+}
+
+// รีเซ็ตตัวนับเวลาเมื่อผู้ใช้มีการเคลื่อนไหว
+['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
+  window.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+
+resetIdleTimer();
 
 
 
