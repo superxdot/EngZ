@@ -232,7 +232,7 @@
               <div class="hidden lg:flex lg:col-span-5 relative bg-indigo-950 flex-col justify-between p-8 text-white overflow-hidden">
                   <!-- ปรับปรุงจุดนี้: ลบ opacity-20 และ mix-blend-luminosity ออก เพื่อไม่ให้ภาพมืด/ขาวดำ -->
        
-              <!--      <img src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e1b4b/ffffff?text=CEFR+Platform';" class="absolute inset-0 w-full h-full object-cover" alt="Learning and Technology"> -->
+              <img src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e1b4b/ffffff?text=CEFR+Platform';" class="absolute inset-0 w-full h-full object-cover" alt="Learning and Technology">
                  
 <img id="random-cover" 
      src="" 
@@ -4900,46 +4900,6 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
                   viewModule4Observer.observe(mod4Element, { attributes: true });
               }
           });
-
-// 1. รวบรวม URL รูปภาพที่ต้องการสุ่มไว้ในนี้
-  const images = [
-    "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop",
-// โทนเทคโนโลยี / โค้ดดิ้ง / ไซเบอร์
-  "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop",
-
-  // โทน Abstract / ไล่สีม่วง-น้ำเงิน (เข้ากับ UI ของคุณ)
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?w=800&auto=format&fit=crop",
-
-  // โทนวิวธรรมชาติ / อวกาศ / ท้องฟ้า
-  "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1526379879527-8559ecfcaec0?w=800&auto=format&fit=crop"
-];
-
-  // 2. สุ่มดึงมา 1 รูป
-  const randomImage = images[Math.floor(Math.random() * images.length)];
-
-  // 3. กำหนดรูปให้กับแท็ก <img>
-  document.getElementById("random-cover").src = randomImage;
-
 
 
    
