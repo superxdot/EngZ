@@ -2569,12 +2569,14 @@ function updateAdminStatsUI() {
     function getQuestionMode(rawType) {
   const clean = String(rawType || "").toLowerCase().replace(/\s+/g, '');
 
+  if (clean.includes('recomp') || clean.includes('readcomp') || clean.includes('reading')) return null;
   if (clean.includes('cloze') || clean.includes('blank') || clean.includes('choice')) return 'cloze';
   if (clean.includes('scramble') || clean.includes('wordscramble')) return 'scramble';
   if (clean.includes('listen') || clean.includes('listening') || clean.includes('dictation')) return 'listening';
   if (clean.includes('speak') || clean.includes('speaking') || clean.includes('pronunciation')) return 'speaking';
-  if (clean.includes('highlight') || clean.includes('highlight')) return 'highlight';
-  return 'cloze';
+  if (clean.includes('highlight')) return 'highlight';
+  if (clean.includes('business')) return 'cloze';
+  return null;
 }
 
   
