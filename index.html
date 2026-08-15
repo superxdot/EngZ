@@ -2566,6 +2566,22 @@ function updateAdminStatsUI() {
     return;
   }
 
+  const LEVEL_WEIGHT = { 'A1.1': 1, 'A1.2': 2, 'A1': 2, 'A2.1': 3, 'A2.2': 4, 'A2': 4, 'B1.1': 5, 'B1.2': 6, 'B1': 6, 'B2.1': 7, 'B2.2': 8, 'B2': 8, 'C1.1': 9, 'C1.2': 10, 'C1': 10, 'C2.1': 11, 'C2.2': 12, 'C2': 12 };
+  const HIGH_MIX_LEVELS = ['B2.1', 'B2.2', 'C1.1', 'C1.2', 'C2.1', 'C2.2'];
+  const levelWeight = lvl => LEVEL_WEIGHT[String(lvl).replace(/-BIZ$/i, '').toUpperCase().trim()] || 0;
+
+  const userBaseLevel = userLevel.replace(/-BIZ$/i, '');
+  const lowerWeight = HIGH_MIX_LEVELS.includes(userBaseLevel) ? levelWeight(userBaseLevel) - 1 : 0;
+
+  let filteredLower = [];
+  if (lowerWeight > 0) {
+    filteredLower = allQuestions.filter(q => {
+      const normQ = normalizeKeys(q);
+      const qLevel = getFieldValue(normQ, ['level', 'ระดับ', 'cefr', 'col_0', 'col_a'], "").toUpperCase().trim();
+      return levelWeight(qLevel) === lowerWeight;
+    });
+  }
+
     function getQuestionMode(rawType) {
   const clean = String(rawType || "").toLowerCase().replace(/\s+/g, '');
 
@@ -2602,6 +2618,14 @@ function updateAdminStatsUI() {
     highlight: createPoolDrawer(levelHighlight, globalHighlight)
   };
 
+  const lowerDrawers = filteredLower.length > 0 ? {
+    cloze: createPoolDrawer(filteredLower.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'cloze'), []),
+    scramble: createPoolDrawer(filteredLower.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'scramble'), []),
+    listening: createPoolDrawer(filteredLower.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'listening'), []),
+    speaking: createPoolDrawer(filteredLower.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'speaking'), [])
+  } : null;
+
+
       function drawWithFallback(targetMode) {
     let actualMode = targetMode === 'listening_gap_4' ? 'listening' : targetMode;
     let drawer = drawers[actualMode];
@@ -2619,12 +2643,27 @@ function updateAdminStatsUI() {
   'speaking', 'speaking', 'speaking', 'speaking', 'speaking', 'speaking'
 ];
 
+  function drawWithLowerFallback(targetMode) {
+    const actualMode = targetMode === 'listening_gap_4' ? 'listening' : targetMode;
+    if (lowerDrawers && lowerDrawers[actualMode] && lowerDrawers[actualMode].hasQuestions) {
+      return lowerDrawers[actualMode].draw();
+    }
+    return drawWithFallback(targetMode);
+  }
+
+  const totalSlots = patternLayout.length;
+  const lowerSlotCount = lowerDrawers ? Math.round(totalSlots * 0.2) : 0;
+  const slotPlan = [
+    ...Array(lowerSlotCount).fill('lower'),
+    ...Array(totalSlots - lowerSlotCount).fill('current')
+  ].sort(() => 0.5 - Math.random());
+
 
   const sessionQuestions = [];
   
   for (let i = 0; i < patternLayout.length; i++) {
     const targetMode = patternLayout[i];
-    const baseQ = drawWithFallback(targetMode);
+    const baseQ = slotPlan[i] === 'lower' ? drawWithLowerFallback(targetMode) : drawWithFallback(targetMode);
     if (!baseQ) continue; 
 
     const normQ = normalizeKeys(baseQ);
@@ -3455,7 +3494,7 @@ async function concludePracticeRound() {
       remarkMsg = `ปรับระดับลดลงเนื่องจากคะแนนต่ำกว่าเกณฑ์ (${finalScorePct}%)`;
       toastStatus = "error";
     }
-  } else if (finalScorePct > 90) { 
+  } else if (finalScorePct > 98) { 
     if (currentIdx < cefrOrderSub.length - 1) {
       currentIdx++;
       remarkMsg = `ปรับระดับเพิ่มขึ้นเนื่องจากคะแนนสูงกว่าเกณฑ์ (${finalScorePct}%)`;
