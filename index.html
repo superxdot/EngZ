@@ -1406,13 +1406,27 @@ window.addEventListener('click', unlockAudioEngine, { once: true });
 
       const localSheetId = localStorage.getItem('cefr_sheet_id');
       const localGasUrl = localStorage.getItem('cefr_gas_url');
+      const gasUrlLocked = localStorage.getItem('cefr_gas_url_locked') === '1';
 
       let rawSheetId = urlSheetId || localSheetId || DEFAULT_SHEET_ID;
       appState.settings.sheetId = cleanSheetId(rawSheetId);
-      appState.settings.gasUrl = urlGasUrl || localGasUrl || DEFAULT_GAS_URL;
+
+      // ใช้ GAS ที่ระบุใน index.html (DEFAULT_GAS_URL) เป็นหลัก
+      // เพื่อให้เครื่องที่เคยจำ GAS เก่าไว้ใน localStorage กลับมาใช้ GAS ปัจจุบันโดยอัตโนมัติ
+      // ยกเว้นกรณีที่แอดมินตั้งค่าไว้อย่างตั้งใจ (cefr_gas_url_locked = '1') หรือระบุผ่าน URL ?gasUrl=
+      let chosenGasUrl = DEFAULT_GAS_URL;
+      if (urlGasUrl) {
+        chosenGasUrl = urlGasUrl;
+        localStorage.setItem('cefr_gas_url_locked', '1');
+      } else if (gasUrlLocked && localGasUrl) {
+        chosenGasUrl = localGasUrl;
+      } else {
+        localStorage.removeItem('cefr_gas_url_locked');
+      }
+      appState.settings.gasUrl = chosenGasUrl;
 
       if (appState.settings.sheetId) localStorage.setItem('cefr_sheet_id', appState.settings.sheetId);
-      if (appState.settings.gasUrl) localStorage.setItem('cefr_gas_url', appState.settings.gasUrl);
+      localStorage.setItem('cefr_gas_url', chosenGasUrl);
 
       document.getElementById('admin-cfg-sheet-id').value = rawSheetId; 
       document.getElementById('admin-cfg-gas-url').value = appState.settings.gasUrl;
@@ -1712,6 +1726,7 @@ function updateAdminStatsUI() {
 
       localStorage.setItem('cefr_sheet_id', sId);
       localStorage.setItem('cefr_gas_url', gUrl);
+      localStorage.setItem('cefr_gas_url_locked', '1');
       localStorage.setItem('cefr_mode', 'sheets');
 
       appState.settings.sheetId = sId;
