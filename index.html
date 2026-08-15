@@ -180,13 +180,17 @@
       border-radius: 3px;
     }
     .announcement-animation {
-      display: inline-block;
+      display: inline-flex;
       white-space: nowrap;
-      animation: marquee 25s linear infinite;
+      will-change: transform;
+      animation: marquee 18s linear infinite;
+    }
+    .announcement-animation span {
+      padding: 0 1.5rem;
     }
     @keyframes marquee {
-      0% { transform: translate3d(100%, 0, 0); }
-      100% { transform: translate3d(-100%, 0, 0); }
+      0% { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-50%, 0, 0); }
     }
   </style>
 </head>
@@ -198,8 +202,8 @@
       <i data-lucide="megaphone" class="w-4 h-4 mr-1 text-yellow-400"></i> ประกาศ:
     </div>
     <div class="w-full overflow-hidden relative">
-      <div class="announcement-animation pl-12">
-        🚀 ระบบประมวลผลแบบฝึกหัดเวอร์ชันล่าสุด สำเร็จแล้ว!
+      <div class="announcement-animation">
+        <span>🚀 ระบบประมวลผลแบบฝึกหัดเวอร์ชันล่าสุด สำเร็จแล้ว!</span><span>🚀 ระบบประมวลผลแบบฝึกหัดเวอร์ชันล่าสุด สำเร็จแล้ว!</span>
       </div>
     </div>
   </div>
@@ -271,7 +275,7 @@
             <div class="bg-white/10 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md border border-white/20 shadow-inner">
               <i data-lucide="graduation-cap" class="w-10 h-10 text-violet-200"></i>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-purple-50">CEFR English Platform</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-purple-50">English upskill platform</h1>
             <p class="text-violet-200 text-sm mt-1">กรอกรหัสผู้เรียนเพื่อเริ่มต้นประเมินผลและฝึกฝน</p>
           </div>
           
@@ -4678,8 +4682,37 @@ function updateSingSummary() {
   }
 }
 
+function initAnnouncementMarquee() {
+  const track = document.querySelector('.announcement-animation');
+  if (!track) return;
+
+  track.style.animation = 'none';
+  if (track.querySelectorAll('span').length === 0) {
+    const content = track.innerHTML;
+    track.innerHTML = `<span>${content}</span><span>${content}</span>`;
+  }
+
+  let pos = 0;
+  let last = null;
+  const speed = 60;
+
+  function step(now) {
+    requestAnimationFrame(step);
+    if (!track.offsetParent) { last = null; return; }
+    if (last === null) last = now;
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    pos -= speed * dt;
+    const half = track.scrollWidth / 2;
+    if (half > 0 && -pos >= half) pos += half;
+    track.style.transform = `translate3d(${pos}px, 0, 0)`;
+  }
+  requestAnimationFrame(step);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   ensureSingPracticePanel();
+  initAnnouncementMarquee();
 });
 
   // ระบบสร้างพาเนลหมวดที่ 4 อัตโนมัติ (ถ้า HTML ยังไม่มี view-module4)
