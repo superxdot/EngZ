@@ -516,6 +516,7 @@
   <div id="step-listening" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">3. Listening</div>
   <div id="step-listening_gap_4" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">4. Gap Fill</div>
   <div id="step-speaking" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">5. Speaking</div>
+  <div id="step-reading" class="py-2 border-b-2 font-semibold border-slate-200 text-slate-400">6. Reading</div>
   
 </div>
 
@@ -2201,6 +2202,7 @@ function updateAdminStatsUI() {
     }
 
     async function handleLogout() {
+      stopBackgroundMusic();
       if (appState.user) {
         await logSessionToGAS("logout", appState.user.code);
       }
@@ -2571,6 +2573,18 @@ function updateAdminStatsUI() {
     return;
   }
 
+  let latestReadingLevel = userLevel;
+  try {
+    if (typeof fetchUserLatestLevel === 'function') {
+      const fetched = await fetchUserLatestLevel(userLevel);
+      if (fetched && String(fetched).trim() !== '' && String(fetched).trim().toUpperCase() !== 'NA') {
+        latestReadingLevel = String(fetched).trim().toUpperCase();
+      }
+    }
+  } catch (e) {
+    latestReadingLevel = userLevel;
+  }
+
   const LEVEL_WEIGHT = { 'A1.1': 1, 'A1.2': 2, 'A1': 2, 'A2.1': 3, 'A2.2': 4, 'A2': 4, 'B1.1': 5, 'B1.2': 6, 'B1': 6, 'B2.1': 7, 'B2.2': 8, 'B2': 8, 'C1.1': 9, 'C1.2': 10, 'C1': 10, 'C2.1': 11, 'C2.2': 12, 'C2': 12 };
   const HIGH_MIX_LEVELS = ['B2.1', 'B2.2', 'C1.1', 'C1.2', 'C2.1', 'C2.2'];
   const levelWeight = lvl => LEVEL_WEIGHT[String(lvl).replace(/-BIZ$/i, '').toUpperCase().trim()] || 0;
@@ -2590,7 +2604,7 @@ function updateAdminStatsUI() {
     function getQuestionMode(rawType) {
   const clean = String(rawType || "").toLowerCase().replace(/\s+/g, '');
 
-  if (clean.includes('recomp') || clean.includes('readcomp') || clean.includes('reading')) return null;
+  if (clean.includes('recomp') || clean.includes('readcomp') || clean.includes('reading')) return 'reading';
   if (clean.includes('cloze') || clean.includes('blank') || clean.includes('choice')) return 'cloze';
   if (clean.includes('scramble') || clean.includes('wordscramble')) return 'scramble';
   if (clean.includes('listen') || clean.includes('listening') || clean.includes('dictation')) return 'listening';
@@ -2606,6 +2620,19 @@ function updateAdminStatsUI() {
   const levelListening = filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'listening');
   const levelSpeaking = filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'speaking');
   const levelHighlight = filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'highlight');
+  const baseLevelOf = lvl => String(lvl || '').replace(/-BIZ$/i, '').split('.')[0].toUpperCase().trim();
+  const levelReading = allQuestions.filter(q => {
+    const mode = getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b']));
+    if (mode !== 'reading') return false;
+    const qLevel = getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'cefr', 'col_0', 'col_a'], "").toUpperCase().trim();
+    return baseLevelOf(qLevel) === baseLevelOf(latestReadingLevel);
+  });
+  const profileReading = allQuestions.filter(q => {
+    const mode = getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b']));
+    if (mode !== 'reading') return false;
+    const qLevel = getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'cefr', 'col_0', 'col_a'], "").toUpperCase().trim();
+    return baseLevelOf(qLevel) === baseLevelOf(userLevel);
+  });
 
   
   const globalCloze = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'cloze');
@@ -2613,6 +2640,7 @@ function updateAdminStatsUI() {
   const globalListening = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'listening');
   const globalSpeaking = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'speaking');
   const globalHighlight = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'highlight');
+  const globalReading = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'reading');
 
 
   const drawers = {
@@ -2620,7 +2648,8 @@ function updateAdminStatsUI() {
     scramble: createPoolDrawer(levelScramble, globalScramble),
     listening: createPoolDrawer(levelListening, globalListening),
     speaking: createPoolDrawer(levelSpeaking, globalSpeaking),
-    highlight: createPoolDrawer(levelHighlight, globalHighlight)
+    highlight: createPoolDrawer(levelHighlight, globalHighlight),
+    reading: createPoolDrawer(levelReading, profileReading)
   };
 
   const lowerDrawers = filteredLower.length > 0 ? {
@@ -2635,7 +2664,7 @@ function updateAdminStatsUI() {
     let actualMode = targetMode === 'listening_gap_4' ? 'listening' : targetMode;
     let drawer = drawers[actualMode];
     if (drawer && drawer.hasQuestions) return drawer.draw();
-    const availableModes = ['cloze', 'scramble', 'listening', 'speaking'].filter(m => drawers[m] && drawers[m].hasQuestions);
+    const availableModes = ['cloze', 'scramble', 'listening', 'speaking', 'reading'].filter(m => drawers[m] && drawers[m].hasQuestions);
     if (availableModes.length > 0) return drawers[availableModes[0]].draw();
     return null;
   }
@@ -2645,7 +2674,8 @@ function updateAdminStatsUI() {
   'scramble', 'scramble', 'scramble', 'scramble', 'scramble', 'scramble',
   'cloze', 'cloze', 'cloze', 'cloze', 'cloze', 'cloze',
   'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4',
-  'speaking', 'speaking', 'speaking', 'speaking', 'speaking', 'speaking'
+  'speaking', 'speaking', 'speaking', 'speaking', 'speaking', 'speaking',
+  'reading'
 ];
 
   function drawWithLowerFallback(targetMode) {
@@ -2668,7 +2698,8 @@ function updateAdminStatsUI() {
   
   for (let i = 0; i < patternLayout.length; i++) {
     const targetMode = patternLayout[i];
-    const baseQ = slotPlan[i] === 'lower' ? drawWithLowerFallback(targetMode) : drawWithFallback(targetMode);
+    const useLower = targetMode !== 'reading' && slotPlan[i] === 'lower';
+    const baseQ = useLower ? drawWithLowerFallback(targetMode) : drawWithFallback(targetMode);
     if (!baseQ) continue; 
 
     const normQ = normalizeKeys(baseQ);
@@ -2686,6 +2717,9 @@ function updateAdminStatsUI() {
     let targetCorrectAnswer = resolvedCorrectAnswer;
 
     if (targetMode === 'cloze') {
+      targetQuestionText = questionText;
+      targetCorrectAnswer = resolvedCorrectAnswer;
+    } else if (targetMode === 'reading') {
       targetQuestionText = questionText;
       targetCorrectAnswer = resolvedCorrectAnswer;
     } else {
@@ -2710,7 +2744,9 @@ function updateAdminStatsUI() {
       questionText: targetQuestionText,
       correctAnswer: targetCorrectAnswer,
       translation: translation,
-      options: optsArray.sort(() => 0.5 - Math.random()) 
+      options: optsArray.sort(() => 0.5 - Math.random()),
+      words: targetMode === 'reading' ? (questionText.split(/\s+/).filter(w => w.trim() !== "")) : [],
+      thai: targetMode === 'reading' ? translation : ""
     });
   }
 
@@ -2733,6 +2769,7 @@ function updateAdminStatsUI() {
 
   switchView('practice');
   loadPracticeQuestion();
+  playBackgroundMusic();
 }
 
     function loadPracticeQuestion() {
@@ -3106,6 +3143,44 @@ function updateAdminStatsUI() {
 
         container.appendChild(speakSection);
         safeCreateIcons();
+      } else if (q.assignedMode === 'reading') {
+        modeLabel.innerHTML = `6. READING COMPREHENSION`;
+        questionTextElem.className = "text-emerald-950 font-semibold text-base sm:text-lg md:text-xl py-4 border-b border-emerald-100 text-center leading-relaxed";
+        questionTextElem.innerText = "เรียงคำศัพท์ภาษาอังกฤษที่กำหนดให้เป็นประโยคที่ถูกต้อง:";
+
+        pract.readingSelected = [];
+
+        const readSection = document.createElement('div');
+        readSection.className = "flex flex-col gap-4 mt-2";
+
+        const resultBox = document.createElement('div');
+        resultBox.id = "reading-result";
+        resultBox.className = "p-6 bg-white border-3 border-dashed border-emerald-300 rounded-2xl min-h-[80px] flex flex-wrap gap-3 items-center text-lg sm:text-xl font-bold text-emerald-950";
+        readSection.appendChild(resultBox);
+
+        const poolBox = document.createElement('div');
+        poolBox.className = "flex flex-wrap gap-2.5";
+
+        const wordPool = q.words && q.words.length > 0 ? q.words : (q.correctAnswer || q.questionText).split(/\s+/).filter(w => w.trim() !== "");
+
+        wordPool.forEach((word) => {
+          const wBtn = document.createElement('button');
+          wBtn.className = "px-5 py-3.5 bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-emerald-100 transition reading-word-btn shadow-sm cursor-pointer active:scale-95";
+          wBtn.onclick = () => handleReadingWordSelect(wBtn, word);
+          wBtn.innerText = word;
+          poolBox.appendChild(wBtn);
+        });
+
+        readSection.appendChild(poolBox);
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = "self-start px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer";
+        clearBtn.onclick = () => resetReadingAnswer();
+        clearBtn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i> ล้างคำตอบ`;
+        readSection.appendChild(clearBtn);
+
+        container.appendChild(readSection);
+        safeCreateIcons();
       }
 
       const nextBtn = document.getElementById('next-question-btn');
@@ -3191,6 +3266,142 @@ function updateAdminStatsUI() {
         enableActionButton();
       } else {
         disableActionButton();
+      }
+    }
+
+    // ===== ฟังก์ชัน READING COMPREHENSION (ในหมวดที่ 1) =====
+    function handleReadingWordSelect(btn, word) {
+      const pract = appState.currentPractice;
+      if (!pract.readingSelected) pract.readingSelected = [];
+
+      const index = pract.readingSelected.findIndex(item => item.btn === btn);
+      const resultBox = document.getElementById('reading-result');
+
+      if (index !== -1) {
+        btn.className = "px-5 py-3.5 bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-emerald-100 transition reading-word-btn shadow-sm cursor-pointer active:scale-95";
+        pract.readingSelected.splice(index, 1);
+      } else {
+        btn.className = "px-5 py-3.5 bg-emerald-600 text-white font-bold rounded-xl text-lg sm:text-xl hover:bg-emerald-100 transition reading-word-btn shadow-sm cursor-pointer active:scale-95";
+        pract.readingSelected.push({ word: word, btn: btn });
+      }
+
+      renderReadingResult();
+    }
+
+    function resetReadingAnswer() {
+      const pract = appState.currentPractice;
+      pract.readingSelected = [];
+
+      const resultBox = document.getElementById('reading-result');
+      if (resultBox) resultBox.innerHTML = "";
+
+      const poolBox = pract.readingPoolButtons;
+      if (Array.isArray(poolBox)) {
+        poolBox.forEach(btn => {
+          btn.className = "px-5 py-3.5 bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-emerald-100 transition reading-word-btn shadow-sm cursor-pointer active:scale-95";
+        });
+      } else {
+        document.querySelectorAll('.reading-word-btn').forEach(btn => {
+          if (btn.style && btn.style.display === 'none') return;
+          btn.className = "px-5 py-3.5 bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-lg sm:text-xl hover:bg-emerald-100 transition reading-word-btn shadow-sm cursor-pointer active:scale-95";
+        });
+      }
+
+      pract.selectedAnswer = "";
+      disableActionButton();
+    }
+
+    function renderReadingResult() {
+      const pract = appState.currentPractice;
+      const resultBox = document.getElementById('reading-result');
+      if (!resultBox) return;
+
+      resultBox.innerHTML = "";
+
+      pract.readingSelected.forEach(({ word }) => {
+        const tag = document.createElement('span');
+        tag.className = "px-4 py-2.5 bg-emerald-100 border border-emerald-300 text-emerald-900 font-black rounded-xl text-lg sm:text-xl shadow-sm";
+        tag.innerText = word;
+        resultBox.appendChild(tag);
+      });
+
+      const assembledWords = pract.readingSelected.map(x => x.word);
+      pract.selectedAnswer = assembledWords.join(' ');
+
+      if (assembledWords.length > 0) {
+        enableActionButton();
+      } else {
+        disableActionButton();
+      }
+    }
+
+    // ===== เพลงเบาพื้นหลังขณะฝึก (Web Audio - ไม่ต้องใช้ไฟล์เสียง) =====
+    let backgroundMusicCtx = null;
+    let backgroundMusicTimer = null;
+
+    function playBackgroundMusic() {
+      try {
+        if (backgroundMusicCtx && backgroundMusicCtx.state === 'running') return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!backgroundMusicCtx) backgroundMusicCtx = new AudioCtx();
+        const ctx = backgroundMusicCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const master = ctx.createGain();
+        master.gain.value = 0.05;
+        master.connect(ctx.destination);
+
+        const notes = [392, 440, 494, 587, 494, 440, 392, 349, 392, 330, 349, 392];
+        let step = 0;
+        function schedule() {
+          if (!backgroundMusicCtx || backgroundMusicCtx.state !== 'running') return;
+          const now = ctx.currentTime;
+          const freq = notes[step % notes.length];
+          step++;
+
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.18, now + 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(now);
+          osc.stop(now + 1.2);
+        }
+        schedule();
+        backgroundMusicTimer = setInterval(schedule, 1700);
+      } catch (e) {
+        console.warn('เพลงพื้นหลังขัดข้อง:', e);
+      }
+    }
+
+    function stopBackgroundMusic() {
+      if (backgroundMusicTimer) { clearInterval(backgroundMusicTimer); backgroundMusicTimer = null; }
+      if (backgroundMusicCtx) {
+        try { backgroundMusicCtx.close(); } catch (e) {}
+        backgroundMusicCtx = null;
+      }
+    }
+
+    function playPraiseSound() {
+      const phrases = ['Good!', 'Very good!', 'Excellent!'];
+      const pick = phrases[Math.floor(Math.random() * phrases.length)];
+      if (synth) {
+        try {
+          const u = new SpeechSynthesisUtterance(pick);
+          u.lang = 'en-US';
+          u.rate = 1.0;
+          u.volume = 0.9;
+          const voices = synth.getVoices();
+          const female = voices.find(v => v.lang.startsWith('en') && /zira|samantha|female/i.test(v.name));
+          if (female) u.voice = female;
+          synth.speak(u);
+        } catch (e) {
+          console.warn('เสียงยินดีขัดข้อง:', e);
+        }
       }
     }
 
@@ -3366,7 +3577,7 @@ function updateAdminStatsUI() {
     }
 
     function resetStepIndicators() {
-      const steps = ['cloze', 'scramble', 'listening_gap_4', 'speaking'];
+      const steps = ['cloze', 'scramble', 'listening_gap_4', 'speaking', 'reading'];
       steps.forEach(st => {
         const elem = document.getElementById(`step-${st}`);
         if (elem) elem.className = "py-2 border-b-2 font-semibold border-slate-200 text-slate-400";
@@ -3391,7 +3602,7 @@ function updateAdminStatsUI() {
         const similarity = calculateSimilarityRatio(pract.selectedAnswer, q.correctAnswer);
         const similarityPct = Math.round(similarity * 100);
 
-        if (q.assignedMode === 'cloze' || q.assignedMode === 'scramble' || q.assignedMode === 'highlight') {
+        if (q.assignedMode === 'cloze' || q.assignedMode === 'scramble' || q.assignedMode === 'highlight' || q.assignedMode === 'reading') {
           isCorrect = cleanTextForComparison(pract.selectedAnswer) === cleanTextForComparison(q.correctAnswer);
         } else if (q.assignedMode === 'listening_gap_4') {
           const words = (q.correctAnswer || q.questionText).split(/\s+/);
@@ -3412,6 +3623,7 @@ function updateAdminStatsUI() {
 
         if (isCorrect) {
           pract.score++;
+          playPraiseSound();
           alertToast(`ยอดเยี่ยม! ผ่านเกณฑ์ประเมินข้อนี้เรียบร้อย`, "success");
         } else {
           alertToast(`ยังไม่ถูกต้องแม่นยำต่ำกว่าเกณฑ์การประเมิน`, "error");
@@ -3444,7 +3656,7 @@ function updateAdminStatsUI() {
       let passCriteriaInfo = "";
       let scoreDetailText = `อัตราเทียบเคียงจริงของคุณ: ${similarityPct}%`;
 
-      if (mode === 'cloze' || mode === 'scramble' || mode === 'highlight') {
+      if (mode === 'cloze' || mode === 'scramble' || mode === 'highlight' || mode === 'reading') {
         passCriteriaInfo = "เกณฑ์ผ่าน: จำเป็นต้องพิมพ์ให้ถูกต้องแม่นยำ 100%";
       } else if (mode === 'listening_gap_4') {
         const pract = appState.currentPractice;
@@ -3564,6 +3776,7 @@ function closeLevelModal() {
 
     function confirmQuitPractice() {
       closeCustomConfirmModal();
+      stopBackgroundMusic();
       setupDashboardView();
     }
 
@@ -4922,18 +5135,15 @@ function ensureModule4Panel() {
               mod4Initialized = true;
           }
 
-          async function fetchUserLatestLevel() {
+          async function fetchUserLatestLevel(fallbackLevel) {
               const userCode = getCurrentUserCode();
+              const fallback = fallbackLevel || currentUserLevel;
               try {
                   const url = `${DEFAULT_GAS_URL}?action=read&sheet=progress&spreadsheetId=${DEFAULT_SHEET_ID}`;
-                  // const response = await fetch(url);
 
-                     const response = await fetchHighlightQuestionsWithRetry(url, 3, 1000);
+                     const result = await fetchHighlightQuestionsWithRetry(url, 3, 1000);
 
-                  if (!response.ok) return currentUserLevel;
-
-                  const result = await response.json();
-                  if (result.status === 'success' && result.data && result.data.length > 0) {
+                  if (result && result.status === 'success' && result.data && result.data.length > 0) {
                       const userLogs = result.data.filter(item => {
                           const code = String(item['รหัสผู้เรียน'] || item.userCode || item.code || '').trim();
                           const lvl = String(item['ระดับที่ทำได้'] || item.level || item.cefr || '').trim();
@@ -4948,7 +5158,7 @@ function ensureModule4Panel() {
               } catch (err) {
                   console.warn('ไม่สามารถดึงระดับผู้เรียนได้ ใช้ระดับพื้นฐาน:', err);
               }
-              return currentUserLevel;
+              return fallback;
           }  
 
 // ฟังก์ชั่นดึงข้อมูลแบบมี Retry อัตโนมัติ
