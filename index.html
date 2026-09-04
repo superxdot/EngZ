@@ -2827,7 +2827,7 @@ function updateAdminStatsUI() {
       const relaxImg = document.getElementById('practice-relax-img');
       const relaxCaption = document.getElementById('practice-relax-caption');
       const relaxCaptionSub = document.getElementById('practice-relax-caption-sub');
-      const relaxImgWrap = relaxImg ? relaxImg.closest('.w-full.h-full') : null;
+      const relaxImgWrap = relaxImg ? relaxImg.parentElement : null;
 
       const illo = pickQuestionIllustration(q.questionText || q.correctAnswer, q.assignedMode, pract.currentIndex + q.level.length + (pract.questions.length || 1));
       const illoBoxId = 'question-illo-box';
