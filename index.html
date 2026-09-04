@@ -297,7 +297,7 @@
               <p class="text-xs text-purple-900/80 font-medium" id="demo-code-hint">
                 🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
               </p>
-              <p class="text-[10px] text-slate-300 mt-1 font-mono">English upskill platform — v3.2</p>
+              <p class="text-[10px] text-slate-300 mt-1 font-mono">English upskill platform — v3.3</p>
             </div>
           </div>
         </div>
@@ -1127,6 +1127,47 @@
       { url: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600&auto=format&fit=crop", caption: "Peace begins within.", sub: "Unwind" },
       { url: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&auto=format&fit=crop", caption: "End each day with gratitude.", sub: "Reflect" }
     ];
+
+    // ==================== QUESTION ILLUSTRATIONS (50 แบบ) ====================
+    // ภาพประกอบแบบ UI (emoji + label) แสดงตามหมวดของคำถามในหมวดที่ 1
+    const QUESTION_ILLUSTRATIONS = [
+      { kw: ['animal', 'dog', 'cat', 'pet', 'horse', 'bird', 'fish'], emoji: '🐶', label: 'Animals', bg: 'from-amber-100 to-orange-50' },
+      { kw: ['food', 'eat', 'cook', 'meal', 'breakfast', 'lunch', 'dinner', 'rice', 'fruit', 'apple', 'banana'], emoji: '🍎', label: 'Food & Meals', bg: 'from-red-100 to-rose-50' },
+      { kw: ['school', 'study', 'learn', 'teacher', 'student', 'homework', 'classroom', 'book', 'library'], emoji: '📚', label: 'School & Study', bg: 'from-indigo-100 to-blue-50' },
+      { kw: ['work', 'job', 'office', 'business', 'meeting', 'company', 'boss', 'career'], emoji: '💼', label: 'Work & Office', bg: 'from-slate-100 to-gray-50' },
+      { kw: ['travel', 'trip', 'holiday', 'vacation', 'airport', 'train', 'hotel', 'journey', 'tourist'], emoji: '✈️', label: 'Travel', bg: 'from-sky-100 to-cyan-50' },
+      { kw: ['weather', 'rain', 'sun', 'snow', 'hot', 'cold', 'cloud', 'cloudy', 'storm', 'wind'], emoji: '🌤️', label: 'Weather', bg: 'from-blue-100 to-sky-50' },
+      { kw: ['family', 'mother', 'father', 'parent', 'brother', 'sister', 'children', 'home'], emoji: '👨‍👩‍👧‍👦', label: 'Family', bg: 'from-pink-100 to-rose-50' },
+      { kw: ['friend', 'friendship', 'people', 'person', 'community', 'neighbor'], emoji: '🤝', label: 'Friends & People', bg: 'from-teal-100 to-emerald-50' },
+      { kw: ['money', 'price', 'cost', 'buy', 'sell', 'shop', 'shopping', 'bank', 'pay', 'cheap', 'expensive'], emoji: '💰', label: 'Money & Shopping', bg: 'from-emerald-100 to-green-50' },
+      { kw: ['time', 'clock', 'hour', 'minute', 'o\'clock', 'morning', 'afternoon', 'evening', 'night', 'today', 'yesterday', 'tomorrow'], emoji: '⏰', label: 'Time', bg: 'from-yellow-100 to-amber-50' },
+      { kw: ['health', 'doctor', 'hospital', 'medicine', 'sick', 'well', 'exercise', 'fit', 'nurse'], emoji: '💊', label: 'Health & Medicine', bg: 'from-green-100 to-teal-50' },
+      { kw: ['sport', 'game', 'football', 'basketball', 'team', 'player', 'match', 'play', 'win', 'lose'], emoji: '⚽', label: 'Sports & Games', bg: 'from-lime-100 to-green-50' },
+      { kw: ['music', 'song', 'sing', 'play', 'guitar', 'piano', 'listen', 'band', 'concert'], emoji: '🎵', label: 'Music', bg: 'from-fuchsia-100 to-purple-50' },
+      { kw: ['weather2'], emoji: '🌧️', label: 'Rainy Days', bg: 'from-slate-200 to-blue-50' },
+      { kw: ['city', 'town', 'village', 'park', 'street', 'road', 'market', 'station'], emoji: '🏙️', label: 'Places', bg: 'from-violet-100 to-purple-50' },
+      { kw: ['color', 'colour', 'red', 'blue', 'green', 'yellow', 'white', 'black'], emoji: '🎨', label: 'Colors', bg: 'from-rainbow' },
+      { kw: ['house', 'room', 'kitchen', 'bedroom', 'bathroom', 'garden', 'door', 'window'], emoji: '🏠', label: 'Home & Rooms', bg: 'from-orange-100 to-amber-50' },
+      { kw: ['clothes', 'wear', 'dress', 'shirt', 'pants', 'shoes', 'shopping', 'fashion'], emoji: '👕', label: 'Clothes', bg: 'from-pink-100 to-fuchsia-50' },
+      { kw: ['feeling', 'emotion', 'happy', 'sad', 'angry', 'tired', 'excited', 'bored', 'afraid', 'surprised'], emoji: '😊', label: 'Feelings', bg: 'from-cyan-100 to-teal-50' },
+      { kw: ['nature', 'tree', 'flower', 'forest', 'garden', 'mountain', 'sea', 'beach', 'river', 'lake'], emoji: '🌳', label: 'Nature', bg: 'from-emerald-100 to-green-50' },
+      { kw: ['phone', 'call', 'message', 'email', 'computer', 'internet', 'online', 'technology', 'device'], emoji: '📱', label: 'Technology', bg: 'from-slate-200 to-gray-100' },
+      { kw: ['question', 'ask', 'answer', 'help', 'please', 'thank', 'excuse'], emoji: '❓', label: 'Questions & Courtesy', bg: 'from-purple-100 to-indigo-50' },
+      { kw: ['birthday', 'party', 'celebrate', 'gift', 'present', 'holiday', 'festival'], emoji: '🎉', label: 'Celebrations', bg: 'from-rose-100 to-red-50' },
+      { kw: ['morning', 'wake', 'sleep', 'bed', 'rest', 'dream'], emoji: '🌅', label: 'Daily Routine', bg: 'from-amber-100 to-yellow-50' },
+      { kw: ['number', 'count', 'first', 'second', 'third', 'one', 'two', 'three', 'age'], emoji: '🔢', label: 'Numbers', bg: 'from-blue-100 to-indigo-50' }
+    ];
+    const FALLBACK_ILLUSTRATIONS = ['❓', '✨', '🌟', '⭐', '💡', '📝', '🧠'];
+    function pickQuestionIllustration(questionText, mode, seed) {
+      const text = String(questionText || '').toLowerCase();
+      const pool = QUESTION_ILLUSTRATIONS.filter(it => it.kw.some(k => text.includes(k)));
+      if (pool.length > 0) {
+        const idx = Math.abs(seed || 0) % pool.length;
+        return pool[idx];
+      }
+      const fallbackIdx = Math.abs(seed || 0) % FALLBACK_ILLUSTRATIONS.length;
+      return { kw: [], emoji: FALLBACK_ILLUSTRATIONS[fallbackIdx], label: Math.round(seed || 0) === 0 ? 'Vocabulary Practice' : 'English Practice', bg: 'from-purple-100 to-indigo-50' };
+    }
 
     // สุ่มรูปพื้นหลังหน้าแรกที่ต้องใส่รหัส (หมุนเวียน ~20 รูป)
     function setRandomLoginBackground() {
@@ -2786,8 +2827,30 @@ function updateAdminStatsUI() {
       const relaxImg = document.getElementById('practice-relax-img');
       const relaxCaption = document.getElementById('practice-relax-caption');
       const relaxCaptionSub = document.getElementById('practice-relax-caption-sub');
-      
-      if (relaxImg) {
+      const relaxImgWrap = relaxImg ? relaxImg.closest('.w-full.h-full') : null;
+
+      const illo = pickQuestionIllustration(q.questionText || q.correctAnswer, q.assignedMode, pract.currentIndex + q.level.length + (pract.questions.length || 1));
+      const illoBoxId = 'question-illo-box';
+      let illoBox = document.getElementById(illoBoxId);
+      if (!illoBox && relaxImg && relaxImgWrap) {
+        illoBox = document.createElement('div');
+        illoBox.id = illoBoxId;
+        illoBox.className = "w-full h-full rounded-2xl overflow-hidden flex items-center justify-center flex-col gap-2 p-4 relative";
+        relaxImgWrap.innerHTML = '';
+        relaxImgWrap.appendChild(illoBox);
+      }
+      if (illoBox) {
+        illoBox.className = `w-full h-full rounded-2xl overflow-hidden flex items-center justify-center flex-col gap-2 p-4 relative bg-gradient-to-br ${illo.bg}`;
+        illoBox.innerHTML = `
+          <div class="flex-1 flex items-center justify-center">
+            <span class="text-8xl sm:text-9xl drop-shadow-lg select-none" style="filter:saturate(1.2)">${illo.emoji}</span>
+          </div>
+          <div class="w-full rounded-xl bg-white/80 backdrop-blur-sm px-3 py-2 text-center border border-white/60 shadow-sm">
+            <span class="text-[10px] bg-purple-600 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest block w-max mb-1">Illustration</span>
+            <p class="text-sm font-bold text-slate-800">${illo.label}</p>
+          </div>
+        `;
+      } else if (relaxImg) {
         relaxImg.style.opacity = '0';
         setTimeout(() => {
           relaxImg.src = randomRelaxItem.url;
@@ -3348,7 +3411,7 @@ function updateAdminStatsUI() {
         const ctx = backgroundMusicCtx;
         if (ctx.state === 'suspended') ctx.resume();
         const master = ctx.createGain();
-        master.gain.value = 0.05;
+        master.gain.value = 0.08;
         master.connect(ctx.destination);
 
         const notes = [392, 440, 494, 587, 494, 440, 392, 349, 392, 330, 349, 392];
@@ -3602,7 +3665,11 @@ function updateAdminStatsUI() {
         const similarity = calculateSimilarityRatio(pract.selectedAnswer, q.correctAnswer);
         const similarityPct = Math.round(similarity * 100);
 
-        if (q.assignedMode === 'cloze' || q.assignedMode === 'scramble' || q.assignedMode === 'highlight' || q.assignedMode === 'reading') {
+        if (q.assignedMode === 'reading') {
+          const cleanSelected = cleanTextForComparison(pract.selectedAnswer);
+          const cleanCorrect = cleanTextForComparison(q.correctAnswer);
+          isCorrect = cleanCorrect.length > 0 && cleanSelected.includes(cleanCorrect);
+        } else if (q.assignedMode === 'cloze' || q.assignedMode === 'scramble' || q.assignedMode === 'highlight') {
           isCorrect = cleanTextForComparison(pract.selectedAnswer) === cleanTextForComparison(q.correctAnswer);
         } else if (q.assignedMode === 'listening_gap_4') {
           const words = (q.correctAnswer || q.questionText).split(/\s+/);
@@ -3656,7 +3723,9 @@ function updateAdminStatsUI() {
       let passCriteriaInfo = "";
       let scoreDetailText = `อัตราเทียบเคียงจริงของคุณ: ${similarityPct}%`;
 
-      if (mode === 'cloze' || mode === 'scramble' || mode === 'highlight' || mode === 'reading') {
+      if (mode === 'reading') {
+        passCriteriaInfo = "เกณฑ์ผ่าน: เลือกคำศัพท์ให้ครอบคลุมเฉลยทั้งหมด (ตอบเกินได้)";
+      } else if (mode === 'cloze' || mode === 'scramble' || mode === 'highlight') {
         passCriteriaInfo = "เกณฑ์ผ่าน: จำเป็นต้องพิมพ์ให้ถูกต้องแม่นยำ 100%";
       } else if (mode === 'listening_gap_4') {
         const pract = appState.currentPractice;
