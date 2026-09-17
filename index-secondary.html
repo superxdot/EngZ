@@ -5306,9 +5306,8 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
                           const itemBaseLevel = itemLevelRaw.replace(/-BIZ$/i, '').split('.')[0];
                           const itemLevelWeight = CEFR_ORDER[itemLevelRaw] || CEFR_ORDER[itemBaseLevel] || 1;
 
-                          // เทียบระดับตรงกัน หรืออยู่ในหมวดระดับหลักเดียวกัน
-                        //  return isReadComp && (itemBaseLevel === baseUserLevel || itemLevelWeight === userLevelWeight);
-                            return isReadComp && (itemBaseLevel === baseUserLevel);
+                          // เทียบระดับตรงกัน หรืออยู่ในหมวดระดับหลักเดียวกัน (รองรับระดับย่อยและ -BIZ)
+                            return isReadComp && (itemBaseLevel === baseUserLevel || itemLevelWeight === userLevelWeight);
                       });
 
                       if (filtered.length === 0) {
