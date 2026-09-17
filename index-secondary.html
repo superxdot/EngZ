@@ -80,7 +80,7 @@
 // ====================================================================
 
   </script>
-  <title>การเข้าเรียนในหมวดที่ 2-3-4</title>
+  <title>การเข้าเรียนในหมวดที่ 2-3-4-5</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Google Fonts (Sarabun & Prompt) -->
@@ -275,7 +275,7 @@
             <div class="bg-white/10 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md border border-white/20 shadow-inner">
               <i data-lucide="graduation-cap" class="w-10 h-10 text-violet-200"></i>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-purple-50">การเข้าเรียนในหมวดที่ 2-3-4</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-purple-50">การเข้าเรียนในหมวดที่ 2-3-4-5</h1>
             <p class="text-violet-200 text-sm mt-1">โปรดกรอกรหัสเข้าเรียนอีกครั้ง เพื่อยืนยันการเข้าฝึกเรียน</p>
           </div>
           
@@ -297,7 +297,7 @@
               <p class="text-xs text-purple-900/80 font-medium" id="demo-code-hint">
                 🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
               </p>
-              <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4 — v3.3</p>
+              <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4-5 — v3.3</p>
             </div>
           </div>
         </div>
@@ -5984,6 +5984,559 @@ function updateNextButtonState() {
             resultBox.className = 'text-gray-500';
         }
     }
+</script>
+
+<script>
+// ============================================================
+// 🎧 หมวดที่ 5: ฝึกฟังคำที่ออกเสียงคล้ายคลึงกัน (SIMILAR-SOUNDING WORDS)
+// ============================================================
+// แต่ละชุด = 4 คำที่เสียงคล้ายกัน (homophones / minimal pairs)
+// แต่ละรอบระบบจะสุ่ม 10 ชุด คำตอบคือคำที่ถูกออกเสียงจากชุดนั้น
+// มีคะแนนเต็ม 10 และไม่ปรับระดับ CEFR (การฟังเพื่อความแม่นยำเท่านั้น)
+// ============================================================
+
+const CONFUSING_WORD_SETS = [
+  { w: ["hear", "here", "hair", "hare"], t: ["ได้ยิน", "ที่นี่", "ผม", "กระต่าย"] },
+  { w: ["read", "red", "ride", "raid"], t: ["อ่าน", "สีแดง", "ขี่", "บุกจู่โจม"] },
+  { w: ["write", "right", "rite", "slight"], t: ["เขียน", "ขวา/ถูกต้อง", "พิธีกรรม", "เล็กน้อย"] },
+  { w: ["see", "sea", "C", "tea"], t: ["เห็น", "ทะเล", "ตัวอักษร C", "ชา"] },
+  { w: ["to", "too", "two", "due"], t: ["ไปถึง", "เกินไป/เช่นกัน", "สอง", "ครบกำหนด"] },
+  { w: ["for", "four", "fore", "fur"], t: ["สำหรับ", "สี่", "ด้านหน้า", "ขนสัตว์"] },
+  { w: ["your", "you're", "yore", "yours"], t: ["ของคุณ", "คุณคือ", "ยุคโบราณ", "ของพวกคุณ"] },
+  { w: ["where", "wear", "ware", "were"], t: ["ที่ไหน", "สวมใส่", "สินค้า", "เป็น (were)"] },
+  { w: ["there", "their", "they're", "tear"], t: ["ที่นั่น", "ของพวกเขา", "พวกเขาคือ", "น้ำตา/ฉีก"] },
+  { w: ["week", "weak", "wick", "wake"], t: ["สัปดาห์", "อ่อนแอ", "ไส้เทียน", "ตื่นนอน"] },
+  { w: ["meat", "meet", "mete", "neat"], t: ["เนื้อ", "พบ/ประชุม", "แบ่งสรร", "เรียบร้อย"] },
+  { w: ["might", "mite", "mike", "mine"], t: ["อาจจะ", "ไร (ตัวเล็ก)", "ไมเคิล/ไมค์", "ของฉัน"] },
+  { w: ["knight", "night", "nit", "not"], t: ["อัศวิน", "กลางคืน", "ไข่เหา", "ไม่"] },
+  { w: ["bite", "bight", "byte", "white"], t: ["กัด", "อ่าวเล็ก", "ไบต์ (ข้อมูล)", "สีขาว"] },
+  { w: ["light", "right", "write", "white"], t: ["แสงสว่าง", "ขวา/ถูก", "เขียน", "สีขาว"] },
+  { w: ["eye", "I", "aye", "why"], t: ["ตา", "ฉัน", "ใช่ (aye)", "ทำไม"] },
+  { w: ["price", "prise", "prize", "rice"], t: ["ราคา", "แงะเปิด", "รางวัล", "ข้าว"] },
+  { w: ["rice", "rise", "lice", "lies"], t: ["ข้าว", "ขึ้น/เพิ่ม", "เหา", "พูดเท็จ"] },
+  { w: ["sail", "sale", "seal", "cell"], t: ["แล่นเรือ", "การขาย", "ตราประทับ", "เซลล์"] },
+  { w: ["tail", "tale", "tell", "teal"], t: ["หาง", "นิทาน", "บอก", "สีเขียวอมน้ำเงิน"] },
+  { w: ["mail", "male", "meal", "mile"], t: ["จดหมาย", "เพศชาย", "มื้ออาหาร", "ไมล์"] },
+  { w: ["pale", "pail", "peal", "pill"], t: ["ซีด", "ถัง", "เสียงระฆัง", "ยาเม็ด"] },
+  { w: ["pain", "pane", "pine", "pin"], t: ["ความเจ็บปวด", "แผ่นกระจก", "ต้นสน", "เข็มหมุด"] },
+  { w: ["plain", "plane", "plan", "plank"], t: ["ธรรมดา", "เครื่องบิน", "แผน", "กระดาน"] },
+  { w: ["so", "sew", "sow", "toe"], t: ["ดังนั้น", "เย็บผ้า", "หว่านเมล็ด", "นิ้วเท้า"] },
+  { w: ["no", "know", "now", "gnaw"], t: ["ไม่", "รู้", "ตอนนี้", "แทะ"] },
+  { w: ["hole", "whole", "hall", "hull"], t: ["รู", "ทั้งหมด", "ห้องโถง", "เปลือกเรือ"] },
+  { w: ["won", "one", "once", "want"], t: ["ชนะ", "หนึ่ง", "ครั้งหนึ่ง", "ต้องการ"] },
+  { w: ["son", "sun", "sum", "some"], t: ["ลูกชาย", "พระอาทิตย์", "ผลรวม", "บางส่วน"] },
+  { w: ["some", "sum", "son", "sun"], t: ["บางส่วน", "ผลรวม", "ลูกชาย", "พระอาทิตย์"] },
+  { w: ["peak", "peek", "pick", "poke"], t: ["ยอดเขา", "แอบมอง", "เลือก", "แหย่"] },
+  { w: ["beach", "peach", "pitch", "patch"], t: ["ชายหาด", "ลูกพีช", "ระดับเสียง/ยางมะตอย", "ผ้าปะ"] },
+  { w: ["ship", "sheep", "chip", "cheap"], t: ["เรือ", "แกะ", "มันฝรั่งทอดแผ่น", "ราคาถูก"] },
+  { w: ["sit", "set", "seat", "sat"], t: ["นั่ง", "ตั้งค่า", "ที่นั่ง", "นั่งแล้ว"] },
+  { w: ["bit", "beat", "beet", "bet"], t: ["บิต/ชิ้นเล็ก", "ตี/จังหวะ", "ผักบีทรูท", "เดิมพัน"] },
+  { w: ["bed", "bad", "bet", "bark"], t: ["เตียง", "ไม่ดี", "เดิมพัน", "เปลือกไม้/เห่า"] },
+  { w: ["fun", "fan", "pan", "pun"], t: ["สนุก", "พัดลม", "กระทะ", "คำผวน"] },
+  { w: ["pin", "pen", "pan", "pine"], t: ["เข็มหมุด", "ปากกา", "กระทะ", "ต้นสน"] },
+  { w: ["ten", "tin", "ton", "tan"], t: ["สิบ", "กระป๋อง", "ตัน", "สีแทน"] },
+  { w: ["men", "man", "met", "matt"], t: ["ผู้ชาย (พหูพจน์)", "ผู้ชาย", "พบแล้ว", "เสื่อ"] },
+  { w: ["end", "and", "ant", "aunt"], t: ["จุดจบ", "และ", "มด", "ป้า/อาผู้หญิง"] },
+  { w: ["let", "late", "light", "lite"], t: ["ให้/อนุญาต", "สาย", "แสงสว่าง", "ฉบับเบา ๆ"] },
+  { w: ["get", "gate", "got", "guess"], t: ["ได้", "ประตู", "ได้มาแล้ว", "เดา"] },
+  { w: ["but", "bit", "boat", "boot"], t: ["แต่", "บิต/เล็กน้อย", "เรือ", "รองเท้าบูท"] },
+  { w: ["book", "buck", "box", "bark"], t: ["หนังสือ", "เงินดอลลาร์", "กล่อง", "เปลือกไม้"] },
+  { w: ["cook", "kick", "cake", "coke"], t: ["ปรุงอาหาร", "เตะ", "เค้ก", "น้ำอัดลม"] },
+  { w: ["look", "luck", "lock", "lake"], t: ["มอง", "โชค", "ล็อก", "ทะเลสาบ"] },
+  { w: ["wood", "would", "word", "world"], t: ["ไม้", "จะ (would)", "คำ", "โลก"] },
+  { w: ["good", "God", "gourd", "gold"], t: ["ดี", "พระเจ้า", "น้ำเต้า", "ทองคำ"] },
+  { w: ["could", "cud", "code", "cook"], t: ["สามารถ", "อาหารเคี้ยวเอื้อง", "รหัส", "ปรุงอาหาร"] },
+  { w: ["head", "had", "hard", "heard"], t: ["หัว", "มี (had)", "แข็ง", "ได้ยิน (heard)"] },
+  { w: ["said", "sad", "set", "seed"], t: ["กล่าว", "เศร้า", "ตั้งค่า", "เมล็ด"] },
+  { w: ["send", "sand", "sound", "spend"], t: ["ส่ง", "ทราย", "เสียง", "ใช้จ่าย"] },
+  { w: ["then", "thin", "than", "this"], t: ["แล้ว", "บาง", "กว่า", "นี้"] },
+  { w: ["think", "thing", "sink", "thin"], t: ["คิด", "สิ่งของ", "อ่างล้างจาน", "บาง"] },
+  { w: ["three", "tree", "free", "flee"], t: ["สาม", "ต้นไม้", "อิสระ", "หนี"] },
+  { w: ["through", "true", "try", "tray"], t: ["ผ่าน", "จริง", "พยายาม", "ถาด"] },
+  { w: ["safe", "save", "self", "same"], t: ["ปลอดภัย", "บันทึก/ช่วยเหลือ", "ตัวเอง", "เหมือนกัน"] },
+  { w: ["fine", "find", "fan", "phone"], t: ["ดี/ปรับ", "ค้นหา", "พัดลม", "โทรศัพท์"] },
+  { w: ["nine", "nice", "night", "nail"], t: ["เก้า", "ดี/น่ารัก", "กลางคืน", "เล็บ"] },
+  { w: ["line", "loin", "lane", "lean"], t: ["เส้น", "สันใน", "เลน", "เอน/ผอม"] },
+  { w: ["time", "team", "tame", "tomb"], t: ["เวลา", "ทีม", "เชื่อง", "หลุมฝังศพ"] },
+  { w: ["dime", "dine", "deem", "den"], t: ["เหรียญสิบเซ็นต์", "ทานมื้อเย็น", "เห็นว่า", "รัง"] },
+  { w: ["life", "live", "leave", "laugh"], t: ["ชีวิต", "อยู่/สด", "ลา/จากไป", "หัวเราะ"] },
+  { w: ["wife", "wise", "wine", "win"], t: ["ภรรยา", "ฉลาด", "ไวน์", "ชนะ"] },
+  { w: ["knife", "knit", "knock", "neck"], t: ["มีด", "ถักนิตติ้ง", "เคาะ", "คอ"] },
+  { w: ["like", "lake", "luck", "look"], t: ["ชอบ", "ทะเลสาบ", "โชค", "มอง"] },
+  { w: ["bike", "bake", "book", "buck"], t: ["จักรยาน", "อบ", "หนังสือ", "เงินดอลลาร์"] },
+  { w: ["nice", "knot", "not", "nut"], t: ["ดี", "ปม", "ไม่", "ถั่ว"] },
+  { w: ["love", "laugh", "life", "live"], t: ["รัก", "หัวเราะ", "ชีวิต", "อยู่อาศัย"] },
+  { w: ["dove", "duck", "desk", "dusk"], t: ["นกพิราบ", "เป็ด", "โต๊ะ", "เวลาค่ำ"] },
+  { w: ["just", "jest", "join", "juice"], t: ["เพียงแค่", "พูดเล่น", "เข้าร่วม", "น้ำผลไม้"] },
+  { w: ["jump", "gym", "gun", "jam"], t: ["กระโดด", "ยิม", "ปืน", "แยม"] },
+  { w: ["shut", "shirt", "short", "shot"], t: ["ปิด", "เสื้อเชิ้ต", "สั้น", "การยิง"] },
+  { w: ["shoe", "show", "shall", "shell"], t: ["รองเท้า", "แสดง", "จะ (shall)", "เปลือกหอย"] },
+  { w: ["fish", "fin", "feet", "face"], t: ["ปลา", "ครีบ", "เท้า", "ใบหน้า"] },
+  { w: ["fresh", "flash", "fish", "flesh"], t: ["สด", "แฟลช", "ปลา", "เนื้อหนัง"] },
+  { w: ["glass", "class", "gloss", "grass"], t: ["แก้ว", "ชั้นเรียน", "ความเงางาม", "หญ้า"] },
+  { w: ["pass", "past", "path", "post"], t: ["ผ่าน", "อดีต", "ทางเดิน", "ไปรษณีย์"] },
+  { w: ["last", "least", "less", "list"], t: ["สุดท้าย", "น้อยที่สุด", "น้อยกว่า", "รายการ"] },
+  { w: ["mask", "mark", "march", "milk"], t: ["หน้ากาก", "เครื่องหมาย", "เดือนมีนาคม", "นม"] },
+  { w: ["ask", "axe", "ash", "has"], t: ["ถาม", "ขวาน", "ขี้เถ้า", "มี (has)"] },
+  { w: ["black", "back", "block", "clock"], t: ["สีดำ", "หลัง", "บล็อก", "นาฬิกา"] },
+  { w: ["jack", "joke", "chalk", "check"], t: ["แม่แรง", "เรื่องตลก", "ชอล์ก", "เช็ค"] },
+  { w: ["crack", "clock", "clerk", "cork"], t: ["รอยแตก", "นาฬิกา", "เสมียน", "จุกไม้ก๊อก"] },
+  { w: ["walk", "work", "woke", "wreck"], t: ["เดิน", "ทำงาน", "ตื่นขึ้น", "ทำลาย"] },
+  { w: ["talk", "toll", "tool", "tale"], t: ["พูดคุย", "ค่าผ่านทาง", "เครื่องมือ", "นิทาน"] },
+  { w: ["call", "cool", "cold", "coal"], t: ["เรียก/โทร", "เย็นสบาย", "หนาว", "ถ่านหิน"] },
+  { w: ["ball", "bowl", "base", "bell"], t: ["ลูกบอล", "ชาม", "ฐาน", "กระดิ่ง"] },
+  { w: ["tall", "towel", "toll", "tail"], t: ["สูง", "ผ้าเช็ดตัว", "ค่าผ่านทาง", "หาง"] },
+  { w: ["wall", "will", "well", "wheel"], t: ["กำแพง", "จะ (will)", "ดี/บ่อน้ำ", "ล้อ"] },
+  { w: ["fail", "fell", "feel", "fill"], t: ["ล้มเหลว", "ล้มลง", "รู้สึก", "เติม"] },
+  { w: ["fall", "feel", "fill", "fool"], t: ["ตก", "รู้สึก", "เติม", "คนโง่"] },
+  { w: ["fuel", "fool", "full", "fall"], t: ["เชื้อเพลิง", "คนโง่", "เต็ม", "ตก"] },
+  { w: ["four", "for", "far", "fire"], t: ["สี่", "สำหรับ", "ไกล", "ไฟ"] },
+  { w: ["more", "moor", "war", "wore"], t: ["มากกว่า", "ทุ่งกว้าง", "สงคราม", "สวมแล้ว"] },
+  { w: ["door", "dour", "dare", "dear"], t: ["ประตู", "ขึงขัง", "กล้า", "ที่รัก"] },
+  { w: ["sore", "soar", "saw", "shore"], t: ["เจ็บ", "โผบิน", "เลื่อย", "ชายฝั่ง"] },
+  { w: ["pour", "poor", "pore", "pure"], t: ["เท", "ยากจน", "รูขุมขน", "บริสุทธิ์"] },
+  { w: ["tour", "tore", "turn", "tone"], t: ["ทัวร์", "ฉีกแล้ว", "เลี้ยว", "โทนเสียง"] },
+  { w: ["year", "yard", "your", "yawn"], t: ["ปี", "สนาม/หลา", "ของคุณ", "หาว"] },
+  { w: ["era", "error", "ear", "arrow"], t: ["ยุค", "ข้อผิดพลาด", "หู", "ลูกศร"] },
+  { w: ["aware", "away", "awake", "awhile"], t: ["ตระหนัก", "ไกลออกไป", "ตื่น", "ชั่วครู่"] },
+  { w: ["air", "heir", "ear", "err"], t: ["อากาศ", "ทายาท", "หู", "ทำพลาด"] },
+  { w: ["hair", "hare", "hear", "her"], t: ["ผม", "กระต่าย", "ได้ยิน", "ของเธอ"] },
+  { w: ["word", "work", "world", "worth"], t: ["คำ", "ทำงาน", "โลก", "คุ้มค่า"] },
+  { w: ["were", "where", "ware", "we're"], t: ["เป็น (were)", "ที่ไหน", "สินค้า", "เราคือ"] },
+  { w: ["warm", "worm", "whom", "home"], t: ["อุ่น", "หนอน", "ใคร (whom)", "บ้าน"] },
+  { w: ["form", "foam", "from", "phone"], t: ["แบบฟอร์ม", "โฟม", "จาก", "โทรศัพท์"] },
+  { w: ["farm", "firm", "form", "foam"], t: ["ฟาร์ม", "มั่นคง", "แบบฟอร์ม", "โฟม"] },
+  { w: ["star", "store", "stair", "stir"], t: ["ดาว", "ร้านค้า", "บันได", "กวน"] },
+  { w: ["style", "steal", "steel", "still"], t: ["สไตล์", "ขโมย", "เหล็ก", "ยังคง"] },
+  { w: ["step", "stop", "stamp", "stoop"], t: ["ก้าว", "หยุด", "ตราไปรษณียากร", "ก้มลง"] },
+  { w: ["stand", "stone", "stain", "strong"], t: ["ยืน", "หิน", "รอยเปื้อน", "แข็งแรง"] },
+  { w: ["sleep", "slip", "slept", "slap"], t: ["หลับ", "ลื่น/สลิป", "นอนแล้ว", "ตบ"] },
+  { w: ["slow", "low", "law", "loan"], t: ["ช้า", "ต่ำ", "กฎหมาย", "เงินกู้"] },
+  { w: ["snow", "known", "no", "so"], t: ["หิมะ", "รู้จัก", "ไม่", "ดังนั้น"] },
+  { w: ["show", "shoe", "short", "share"], t: ["แสดง", "รองเท้า", "สั้น", "แบ่งปัน"] },
+  { w: ["shout", "shoot", "shirt", "shut"], t: ["ตะโกน", "ยิง", "เสื้อเชิ้ต", "ปิด"] },
+  { w: ["sound", "south", "sand", "sun"], t: ["เสียง", "ทิศใต้", "ทราย", "พระอาทิตย์"] },
+  { w: ["mouse", "mouth", "mess", "moss"], t: ["หนู", "ปาก", "ความยุ่งเหยิง", "มอส"] },
+  { w: ["house", "horse", "voice", "vice"], t: ["บ้าน", "ม้า", "เสียง", "รอง/บาป"] },
+  { w: ["down", "done", "dawn", "dune"], t: ["ลง", "เสร็จ", "รุ่งอรุณ", "เนินทราย"] },
+  { w: ["town", "tone", "tongue", "tan"], t: ["เมือง", "โทนเสียง", "ลิ้น", "สีแทน"] },
+  { w: ["cow", "how", "now", "wow"], t: ["วัว", "อย่างไร", "ตอนนี้", "ว้าว"] },
+  { w: ["brown", "brow", "broken", "brawn"], t: ["สีน้ำตาล", "คิ้ว", "เสีย", "พละกำลัง"] },
+  { w: ["cloud", "clod", "clad", "cloth"], t: ["เมฆ", "ก้อนดิน", "สวมใส่", "ผ้า"] },
+  { w: ["loud", "laud", "lawn", "load"], t: ["ดัง", "สรรเสริญ", "สนามหญ้า", "บรรทุก"] },
+  { w: ["proud", "praise", "pray", "price"], t: ["ภูมิใจ", "ชมเชย", "อธิษฐาน", "ราคา"] },
+  { w: ["round", "ground", "rind", "ranch"], t: ["กลม", "พื้นดิน", "เปลือก", "ฟาร์มปศุสัตว์"] },
+  { w: ["found", "fond", "fined", "fort"], t: ["พบ", "ชื่นชอบ", "ถูกปรับ", "ป้อม"] },
+  { w: ["pound", "pond", "panda", "pot"], t: ["ปอนด์", "บ่อน้ำ", "แพนด้า", "หม้อ"] },
+  { w: ["amount", "mount", "month", "main"], t: ["จำนวน", "ปีน", "เดือน", "หลัก/สำคัญ"] },
+  { w: ["count", "county", "country", "counsel"], t: ["นับ", "เคาน์ตี้", "ประเทศ", "คำแนะนำ"] },
+  { w: ["house", "host", "haste", "history"], t: ["บ้าน", "เจ้าภาพ", "ความรีบเร่ง", "ประวัติศาสตร์"] },
+  { w: ["why", "who", "whom", "how"], t: ["ทำไม", "ใคร", "ใคร (whom)", "อย่างไร"] },
+  { w: ["when", "went", "wand", "want"], t: ["เมื่อไร", "ไปแล้ว", "ไม้เท้า", "ต้องการ"] },
+  { w: ["what", "wet", "watt", "wheat"], t: ["อะไร", "เปียก", "วัตต์", "ข้าวสาลี"] },
+  { w: ["wish", "wash", "which", "witch"], t: ["ปรารถนา", "ล้าง", "ซึ่ง", "แม่มด"] },
+  { w: ["rich", "rice", "race", "rise"], t: ["รวย", "ข้าว", "แข่ง", "ขึ้น"] },
+  { w: ["teach", "teeth", "tooth", "touch"], t: ["สอน", "ฟัน (พหูพจน์)", "ฟัน", "สัมผัส"] },
+  { w: ["catch", "cash", "coach", "quash"], t: ["จับ", "เงินสด", "โค้ช", "ระงับ"] },
+  { w: ["watch", "wash", "wish", "witch"], t: ["นาฬิกา", "ล้าง", "ปรารถนา", "แม่มด"] },
+  { w: ["stretch", "scratch", "stitch", "switch"], t: ["ยืด", "เกา", "การเย็บ", "สวิตช์"] },
+  { w: ["chair", "cheer", "share", "shell"], t: ["เก้าอี้", "เชียร์", "แบ่งปัน", "เปลือกหอย"] },
+  { w: ["church", "charge", "curve", "cheer"], t: ["โบสถ์", "ค่าใช้จ่าย", "โค้ง", "เชียร์"] },
+  { w: ["cheese", "chase", "chose", "chess"], t: ["ชีส", "ไล่", "เลือกแล้ว", "หมากรุก"] },
+  { w: ["chest", "cheat", "chef", "chat"], t: ["หน้าอก", "โกง", "เชฟ", "คุย"] },
+  { w: ["school", "scowl", "scale", "scold"], t: ["โรงเรียน", "ทำหน้ามุ่ย", "มาตราส่วน", "ดุ"] },
+  { w: ["small", "smell", "smile", "smoke"], t: ["เล็ก", "กลิ่น", "ยิ้ม", "ควัน"] },
+  { w: ["smile", "smell", "snack", "snake"], t: ["ยิ้ม", "กลิ่น", "ขนมขบเคี้ยว", "งู"] },
+  { w: ["snake", "snack", "neck", "nick"], t: ["งู", "ขนม", "คอ", "รอยขีด"] },
+  { w: ["stay", "stair", "star", "store"], t: ["อยู่", "บันได", "ดาว", "ร้านค้า"] },
+  { w: ["today", "towel", "toil", "tale"], t: ["วันนี้", "ผ้าเช็ดตัว", "ตรากตรำ", "นิทาน"] },
+  { w: ["say", "sail", "sale", "cell"], t: ["พูด", "แล่นเรือ", "การขาย", "เซลล์"] },
+  { w: ["box", "books", "bucks", "back"], t: ["กล่อง", "หนังสือ", "เงินดอลลาร์", "หลัง"] },
+  { w: ["fox", "facts", "fax", "axe"], t: ["สุนัขจิ้งจอก", "ข้อเท็จจริง", "แฟกซ์", "ขวาน"] },
+  { w: ["next", "neck", "knock", "kick"], t: ["ถัดไป", "คอ", "เคาะ", "เตะ"] },
+  { w: ["six", "sick", "sink", "thick"], t: ["หก", "ป่วย", "อ่างล้างจาน", "หนา"] },
+  { w: ["fix", "fax", "fox", "flex"], t: ["ซ่อม", "แฟกซ์", "จิ้งจอก", "งอ"] },
+  { w: ["mix", "max", "mask", "mess"], t: ["ผสม", "สูงสุด", "หน้ากาก", "ยุ่งเหยิง"] },
+  { w: ["select", "collect", "correct", "connect"], t: ["เลือก", "เก็บ", "ถูกต้อง", "เชื่อมต่อ"] },
+  { w: ["protect", "product", "project", "protest"], t: ["ปกป้อง", "ผลิตภัณฑ์", "โครงการ", "ประท้วง"] },
+  { w: ["price", "print", "paint", "pint"], t: ["ราคา", "พิมพ์", "ทาสี", "ไพนต์"] },
+  { w: ["press", "praise", "price", "prize"], t: ["กด", "ชมเชย", "ราคา", "รางวัล"] },
+  { w: ["practice", "predict", "prefer", "prepare"], t: ["ฝึกฝน", "ทำนาย", "ชอบมากกว่า", "เตรียม"] },
+  { w: ["present", "peasant", "pleasant", "president"], t: ["ของขวัญ/เสนอ", "ชาวนา", "น่ารื่นรมย์", "ประธานาธิบดี"] },
+  { w: ["model", "module", "medal", "mud"], t: ["แบบจำลอง", "โมดูล", "เหรียญ", "โคลน"] },
+  { w: ["visit", "vista", "vessel", "visual"], t: ["เยี่ยมชม", "ทิวทัศน์", "เรือ", "ภาพ"] },
+  { w: ["open", "often", "oven", "ocean"], t: ["เปิด", "บ่อย", "เตาอบ", "มหาสมุทร"] },
+  { w: ["even", "equal", "evil", "ever"], t: ["เท่ากัน/ด้วยซ้ำ", "เท่าเทียม", "ชั่วร้าย", "เคย"] },
+  { w: ["early", "earn", "ear", "earth"], t: ["เช้า", "หาเงิน", "หู", "โลก"] },
+  { w: ["easy", "east", "Asia", "ocean"], t: ["ง่าย", "ทิศตะวันออก", "เอเชีย", "มหาสมุทร"] },
+  { w: ["music", "museum", "muscle", "musical"], t: ["ดนตรี", "พิพิธภัณฑ์", "กล้ามเนื้อ", "เพลง/ละครเพลง"] },
+  { w: ["magic", "manage", "imagine", "image"], t: ["เวทมนตร์", "จัดการ", "จินตนาการ", "ภาพ"] },
+  { w: ["message", "massage", "marriage", "manage"], t: ["ข้อความ", "การนวด", "การแต่งงาน", "จัดการ"] },
+  { w: ["special", "spatial", "social", "several"], t: ["พิเศษ", "เชิงพื้นที่", "สังคม", "หลาย"] },
+  { w: ["station", "motion", "section", "question"], t: ["สถานี", "การเคลื่อนไหว", "ส่วน", "คำถาม"] },
+  { w: ["question", "quest", "quarter", "quart"], t: ["คำถาม", "การแสวงหา", "ไตรมาส", "ควอร์ต"] },
+  { w: ["bottle", "battle", "betray", "better"], t: ["ขวด", "การต่อสู้", "ทรยศ", "ดีกว่า"] },
+  { w: ["little", "litter", "letter", "later"], t: ["เล็กน้อย", "ขยะ", "จดหมาย", "ทีหลัง"] },
+  { w: ["settle", "saddle", "scuttle", "seattle"], t: ["ปักหลัก", "อานม้า", "รีบเร่ง/ทำลาย", "ซีแอตเทิล"] },
+  { w: ["middle", "medal", "model", "muddle"], t: ["กลาง", "เหรียญ", "แบบจำลอง", "สับสน"] },
+  { w: ["simple", "sample", "scramble", "similar"], t: ["ง่าย", "ตัวอย่าง", "ตะกุย", "คล้ายคลึง"] },
+  { w: ["possible", "passable", "probable", "plausible"], t: ["เป็นไปได้", "ผ่านได้", "น่าจะ", "น่าเชื่อถือ"] },
+  { w: ["sentence", "sense", "cents", "scents"], t: ["ประโยค", "ประสาทสัมผัส", "เซนต์", "กลิ่น"] },
+  { w: ["answer", "anxiety", "announcer", "ancestor"], t: ["คำตอบ", "ความกังวล", "ผู้ประกาศ", "บรรพบุรุษ"] },
+  { w: ["ask", "axis", "arc", "ark"], t: ["ถาม", "แกน", "ส่วนโค้ง", "เรือโนอาห์"] },
+  { w: ["atlas", "athlete", "address", "advice"], t: ["แผนที่", "นักกีฬา", "ที่อยู่", "คำแนะนำ"] },
+  { w: ["alarm", "around", "aroma", "arena"], t: ["ปลุก", "รอบ ๆ", "กลิ่นหอม", "สนามกีฬา"] },
+  { w: ["appoint", "account", "accent", "assistant"], t: ["แต่งตั้ง", "บัญชี", "สำเนียง", "ผู้ช่วย"] },
+  { w: ["afford", "afraid", "abroad", "aboard"], t: ["จ่ายไหว", "กลัว", "ต่างประเทศ", "บนเรือ"] },
+  { w: ["art", "arm", "ark", "area"], t: ["ศิลปะ", "แขน", "เรือ", "พื้นที่"] },
+  { w: ["order", "older", "odor", "outdoor"], t: ["คำสั่ง", "แก่กว่า", "กลิ่น", "กลางแจ้ง"] },
+  { w: ["computer", "compete", "commit", "common"], t: ["คอมพิวเตอร์", "แข่งขัน", "กระทำ(ความผิด)", "ทั่วไป"] },
+  { w: ["correct", "collect", "connect", "collide"], t: ["ถูกต้อง", "เก็บ", "เชื่อมต่อ", "ชนกัน"] },
+  { w: ["consider", "consist", "contact", "continue"], t: ["พิจารณา", "ประกอบด้วย", "ติดต่อ", "ดำเนินต่อไป"] },
+  { w: ["bought", "boat", "bowl", "bone"], t: ["ซื้อ (bought)", "เรือ", "ชาม", "กระดูก"] },
+  { w: ["cut", "cart", "coat", "cot"], t: ["ตัด", "รถเข็น", "เสื้อโค้ท", "เตียงพับ"] },
+  { w: ["pet", "pat", "part", "pot"], t: ["สัตว์เลี้ยง", "ลูบ", "ส่วน", "หม้อ"] }
+];
+// จำนวนชุดทั้งหมด (ควรได้ 200 ชุด)
+// console.log('Module5 sets:', CONFUSING_WORD_SETS.length);
+
+let module5State = {
+  pool: [],
+  currentIndex: 0,
+  currentAnswer: '',
+  currentThai: '',
+  score: 0,
+  answered: false,
+  roundTotal: 10,
+  running: false
+};
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function ensureModule5Panel() {
+  if (document.getElementById('view-module5')) return;
+
+  const panel = document.createElement('section');
+  panel.id = 'view-module5';
+  panel.className = 'hidden';
+  panel.innerHTML = `
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 space-y-3">
+      <div class="grid grid-cols-3 gap-2 text-center bg-white border border-purple-100 rounded-2xl p-3 shadow-sm">
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">ระดับ</div>
+          <div id="m5-user-level" class="text-xs sm:text-sm font-black text-purple-700">-</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">คะแนน</div>
+          <div id="m5-score" class="text-xs sm:text-sm font-black text-emerald-600">0 / 10</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">ข้อ</div>
+          <div id="m5-question" class="text-xs sm:text-sm font-black text-slate-700">0 / 10</div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white shadow-sm">
+        <div class="text-xs text-indigo-200 font-bold uppercase tracking-wide">🎧 หมวดที่ 5: คำที่ออกเสียงคล้ายคลึงกัน</div>
+        <h3 class="text-lg sm:text-xl font-black mt-1">ฟังเสียง แล้วเลือกคำที่ตรงกับเสียงที่ได้ยิน</h3>
+        <p class="text-xs sm:text-sm text-indigo-100 mt-1">มี 4 ตัวเลือกต่อข้อ • คะแนนเต็ม 10 • ไม่ปรับระดับ CEFR</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-indigo-100 shadow-sm flex flex-col items-center gap-4 text-center">
+        <button id="m5-play" onclick="module5PlayAudio()"
+          class="w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-3xl shadow-lg flex items-center justify-center transition cursor-pointer">
+          🔊
+        </button>
+        <div>
+          <div class="text-sm font-bold text-slate-700">ฟังเสียงคำศัพท์</div>
+          <div class="text-xs text-slate-400 mt-0.5">กดปุ่มเพื่อฟังซ้ำได้ทุกครั้งที่ต้องการ</div>
+        </div>
+
+        <div id="m5-options" class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-2"></div>
+
+        <div id="m5-feedback" class="text-sm font-bold w-full"></div>
+
+        <button id="m5-next" onclick="module5Next()" style="display:none;"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-xl text-sm shadow-sm cursor-pointer">
+          ข้อถัดไป ➜
+        </button>
+      </div>
+
+      <div class="flex flex-wrap gap-3 justify-center">
+        <button onclick="module5SaveAndExit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer">💾 บันทึกและออก</button>
+        <button onclick="module5ExitNoSave()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer">ออกโดยไม่บันทึก</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  if (!document.getElementById('module5-m5css')) {
+    const style = document.createElement('style');
+    style.id = 'module5-m5css';
+    style.textContent = `
+      .m5-opt{ padding: 14px 16px; border-radius: 14px; border: 2px solid #e0e7ff; background:#ffffff; color:#4338ca; font-weight:700; font-size:14px; cursor:pointer; transition:all .15s; text-align:left; }
+      .m5-opt:hover{ background:#eef2ff; border-color:#a5b4fc; }
+      .m5-opt:disabled{ opacity:.6; cursor:not-allowed; }
+      .m5-opt.correct{ background:#ecfdf5; border-color:#34d399; color:#047857; }
+      .m5-opt.wrong{ background:#fef2f2; border-color:#fca5a5; color:#b91c1c; }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+function startModule5() {
+  ensureModule5Panel();
+
+  ['view-login', 'view-dashboard', 'view-practice', 'view-dialogue', 'view-admin', 'view-module4', 'view-sing-practice', 'view-module5']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+
+  const panel = document.getElementById('view-module5');
+  if (panel) panel.classList.remove('hidden');
+
+  const levelEl = document.getElementById('m5-user-level');
+  if (levelEl) {
+    const lvl = (typeof currentUserLevel !== 'undefined' && currentUserLevel) ? currentUserLevel
+              : (appState && appState.user && appState.user.level ? appState.user.level : '-');
+    levelEl.innerText = lvl;
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  module5StartRound();
+}
+
+function module5StartRound() {
+  const shuffled = shuffleArray(CONFUSING_WORD_SETS).slice(0, module5State.roundTotal);
+  module5State.pool = shuffled;
+  module5State.currentIndex = 0;
+  module5State.score = 0;
+  module5State.answered = false;
+  module5State.running = true;
+  module5RenderQuestion();
+}
+
+function module5RenderQuestion() {
+  const set = module5State.pool[module5State.currentIndex];
+  if (!set) return;
+
+  const correctIdx = Math.floor(Math.random() * set.w.length);
+  module5State.currentAnswer = set.w[correctIdx];
+  module5State.currentThai = set.t[correctIdx];
+  module5State.answered = false;
+
+  document.getElementById('m5-question').innerText = `${module5State.currentIndex + 1} / ${module5State.roundTotal}`;
+  document.getElementById('m5-score').innerText = `${module5State.score} / ${module5State.roundTotal}`;
+  document.getElementById('m5-options').innerHTML = '';
+  document.getElementById('m5-feedback').innerHTML = '';
+  document.getElementById('m5-next').style.display = 'none';
+  document.getElementById('m5-play').disabled = false;
+
+  const optsBox = document.getElementById('m5-options');
+  set.w.forEach((word, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'm5-opt';
+    btn.innerHTML = `<span class="block text-base">${word}</span><span class="block text-xs text-slate-400 font-normal mt-0.5">${set.t[i]}</span>`;
+    btn.onclick = () => module5ChooseOption(i, btn);
+    optsBox.appendChild(btn);
+  });
+
+  module5PlayAudio();
+}
+
+function module5PlayAudio() {
+  const word = module5State.currentAnswer;
+  if (!word) return;
+  if (typeof playSpeech === 'function') {
+    playSpeech(word, 0.8);
+  } else if (typeof synth !== 'undefined' && synth) {
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(word);
+      u.lang = 'en-US';
+      u.rate = 0.8;
+      synth.speak(u);
+    } catch (e) { console.warn('TTS error:', e); }
+  }
+}
+
+function module5ChooseOption(index, btn) {
+  if (module5State.answered || !module5State.running) return;
+  module5State.answered = true;
+
+  const set = module5State.pool[module5State.currentIndex];
+  const correctIdx = set.w.indexOf(module5State.currentAnswer);
+  const allBtns = document.querySelectorAll('#m5-options .m5-opt');
+  allBtns.forEach(b => b.disabled = true);
+
+  const feedback = document.getElementById('m5-feedback');
+  if (index === correctIdx) {
+    module5State.score += 1;
+    btn.classList.add('correct');
+    feedback.innerHTML = `<span class="text-emerald-600">✅ ถูกต้อง! (+1) — ${set.w[index]} = ${set.t[index]}</span>`;
+    if (typeof playPraiseSound === 'function') playPraiseSound();
+  } else {
+    btn.classList.add('wrong');
+    allBtns[correctIdx].classList.add('correct');
+    feedback.innerHTML = `<span class="text-rose-600">❌ ไม่ถูกต้อง — คำที่ได้ยินคือ "${set.w[correctIdx]}" (${set.t[correctIdx]})</span>`;
+  }
+
+  document.getElementById('m5-score').innerText = `${module5State.score} / ${module5State.roundTotal}`;
+  document.getElementById('m5-next').style.display = 'flex';
+}
+
+function module5Next() {
+  if (module5State.currentIndex + 1 < module5State.pool.length) {
+    module5State.currentIndex += 1;
+    module5RenderQuestion();
+  } else {
+    module5ShowResult();
+  }
+}
+
+function module5ShowResult() {
+  module5State.running = false;
+  document.getElementById('m5-question').innerText = `จบ`;
+  document.getElementById('m5-score').innerText = `${module5State.score} / ${module5State.roundTotal}`;
+  document.getElementById('m5-options').innerHTML = '';
+  document.getElementById('m5-next').style.display = 'none';
+
+  const per = Math.round((module5State.score / module5State.roundTotal) * 100);
+  const msg = per >= 90 ? 'ยอดเยี่ยมมาก! 🏆'
+            : per >= 70 ? 'ดีมาก! 👍'
+            : per >= 50 ? 'พอใช้ ฝึกอีกหน่อยนะ 💪'
+            : 'ไม่เป็นไร ลองใหม่อีกครั้งนะ 😊';
+
+  const feedback = document.getElementById('m5-feedback');
+  feedback.innerHTML = `
+    <div class="rounded-2xl p-6 text-center">
+      <div class="text-4xl font-black text-indigo-700">${module5State.score} / 10</div>
+      <div class="text-lg font-bold text-slate-700 mt-2">${msg}</div>
+      <div class="text-xs text-slate-400 mt-1">หมวดนี้เป็นฝึกทักษะการฟัง — ไม่มีการปรับระดับ CEFR</div>
+      <div class="flex flex-wrap gap-3 justify-center mt-4">
+        <button onclick="module5StartRound()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm shadow-sm cursor-pointer">🔁 ฝึกชุดใหม่ (สุ่มใหม่)</button>
+        <button onclick="module5SaveAndExit()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-sm shadow-sm cursor-pointer">💾 บันทึกและกลับ</button>
+      </div>
+    </div>
+  `;
+}
+
+let isSavingModule5 = false;
+
+async function module5SaveToGAS(totalAttempted) {
+  if (!isSavingModule5) {
+    isSavingModule5 = true;
+    try {
+      const userCode = (typeof getCurrentUserCode === 'function')
+        ? getCurrentUserCode()
+        : (typeof currentUserCode !== 'undefined' ? currentUserCode : '-');
+      const userLevel = (typeof currentUserLevel !== 'undefined' && currentUserLevel)
+        ? currentUserLevel
+        : (appState && appState.user && appState.user.level ? appState.user.level : '-');
+
+      const payload = {
+        action: "saveProgress",
+        sheet: "progress",
+        spreadsheetId: (typeof DEFAULT_SHEET_ID !== 'undefined') ? DEFAULT_SHEET_ID : "",
+        category: "ฟังคำเสียงคล้าย (M5)",
+        score: `${module5State.score}/${totalAttempted}`,
+        level: userLevel,
+        userCode: userCode,
+        remarks: "Modal 5 Listening - Similar Sounding Words (ไม่ปรับ CEFR)"
+      };
+
+      const targetUrl = (typeof DEFAULT_GAS_URL !== 'undefined') ? DEFAULT_GAS_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+      if (targetUrl) {
+        await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+      }
+      if (typeof refreshUserStats === 'function') refreshUserStats();
+    } catch (e) {
+      console.error('Module5 save error:', e);
+    } finally {
+      isSavingModule5 = false;
+    }
+  }
+}
+
+function module5HideAndBack() {
+  const panel = document.getElementById('view-module5');
+  if (panel) panel.classList.add('hidden');
+  if (typeof switchView === 'function') {
+    switchView('dashboard');
+  } else {
+    document.getElementById('view-dashboard').classList.remove('hidden');
+  }
+}
+
+async function module5SaveAndExit() {
+  const done = module5State.currentIndex + (module5State.answered ? 1 : 0);
+  if (done === 0) {
+    if (confirm("คุณยังไม่ได้ทำแบบฝึกหัด ต้องการกลับไปหน้าหลักหรือไม่?")) module5HideAndBack();
+    return;
+  }
+  if (confirm(`คุณทำไปแล้ว ${done} ข้อ\nต้องการบันทึกคะแนน (${module5State.score}/${done}) และออกหรือไม่?`)) {
+    await module5SaveToGAS(done);
+    if (typeof alertToast === 'function') {
+      alertToast(`บันทึกคะแนนสำเร็จ: ${module5State.score} / ${done}`, 'success');
+    }
+    module5HideAndBack();
+  }
+}
+
+function module5ExitNoSave() {
+  if (confirm("ต้องการออกโดยไม่บันทึกคะแนนใช่หรือไม่?")) {
+    module5HideAndBack();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  ensureModule5Panel();
+
+  let practiceGrid = document.querySelector("#dashboard-home .lg\\:col-span-2 .grid");
+  if (!practiceGrid) practiceGrid = document.getElementById('dashboard-home');
+
+  if (practiceGrid && !document.getElementById('module5-card-entry')) {
+    const card = document.createElement('div');
+    card.id = 'module5-card-entry';
+    card.className = "bg-white rounded-2xl p-5 shadow-sm border border-indigo-100 hover:border-indigo-300 transition duration-300 flex flex-col justify-between h-full md:col-span-2 group font-semibold mt-2";
+    card.innerHTML = `
+      <div class="flex flex-col md:flex-row gap-4 items-start">
+        <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mb-2 md:mb-0 group-hover:scale-105 transition">
+          <i data-lucide="headphones" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-base text-slate-800">หมวดที่ 5: ฝึกฟังคำที่ออกเสียงคล้ายคลึงกัน (Similar Sounding Words)</h4>
+          <p class="text-xs text-slate-500 mt-1">คำที่ออกเสียงคล้ายกันกว่า 200 คำ แต่ละรอบสุ่ม 10 ข้อ ฟังเสียงแล้วเลือกคำ 4 ตัวเลือก คะแนนเต็ม 10 (ไม่ปรับระดับ CEFR)</p>
+        </div>
+      </div>
+      <div class="mt-6 border-t border-slate-50 pt-4 flex justify-between items-center flex-wrap gap-2">
+        <span class="text-xs text-slate-400">เนื้อหารองรับ: ทุกระดับ CEFR</span>
+        <button onclick="startModule5()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+          <span>เข้าสู่บทเรียนหมวดที่ 5</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+    practiceGrid.appendChild(card);
+    if (typeof safeCreateIcons === 'function') {
+      safeCreateIcons();
+    } else if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  }
+});
 </script>
 </body>
 </html>
