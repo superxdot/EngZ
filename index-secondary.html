@@ -80,7 +80,7 @@
 // ====================================================================
 
   </script>
-  <title>English upskill platform</title>
+  <title>การเข้าเรียนในหมวดที่ 2-3-4</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Google Fonts (Sarabun & Prompt) -->
@@ -275,8 +275,8 @@
             <div class="bg-white/10 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md border border-white/20 shadow-inner">
               <i data-lucide="graduation-cap" class="w-10 h-10 text-violet-200"></i>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-purple-50">English upskill platform</h1>
-            <p class="text-violet-200 text-sm mt-1">กรอกรหัสผู้เรียนเพื่อเริ่มต้นประเมินผลและฝึกฝน</p>
+            <h1 class="text-2xl font-bold tracking-tight text-purple-50">การเข้าเรียนในหมวดที่ 2-3-4</h1>
+            <p class="text-violet-200 text-sm mt-1">โปรดกรอกรหัสเข้าเรียนอีกครั้ง เพื่อยืนยันการเข้าฝึกเรียน</p>
           </div>
           
           <div class="p-8 flex-grow flex flex-col justify-center">
@@ -297,7 +297,7 @@
               <p class="text-xs text-purple-900/80 font-medium" id="demo-code-hint">
                 🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
               </p>
-              <p class="text-[10px] text-slate-300 mt-1 font-mono">English upskill platform — v3.3</p>
+              <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4 — v3.3</p>
             </div>
           </div>
         </div>
@@ -2662,13 +2662,16 @@ function updateAdminStatsUI() {
   const levelSpeaking = filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'speaking');
   const levelHighlight = filtered.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'highlight');
   const baseLevelOf = lvl => String(lvl || '').replace(/-BIZ$/i, '').split('.')[0].toUpperCase().trim();
-  const levelReading = allQuestions.filter(q => {
+  const businessOnlyModes = category === 'business';
+  const stepReadingEl = document.getElementById('step-reading');
+  if (stepReadingEl) stepReadingEl.style.display = businessOnlyModes ? 'none' : '';
+  const levelReading = businessOnlyModes ? [] : allQuestions.filter(q => {
     const mode = getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b']));
     if (mode !== 'reading') return false;
     const qLevel = getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'cefr', 'col_0', 'col_a'], "").toUpperCase().trim();
     return baseLevelOf(qLevel) === baseLevelOf(latestReadingLevel);
   });
-  const profileReading = allQuestions.filter(q => {
+  const profileReading = businessOnlyModes ? [] : allQuestions.filter(q => {
     const mode = getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b']));
     if (mode !== 'reading') return false;
     const qLevel = getFieldValue(normalizeKeys(q), ['level', 'ระดับ', 'cefr', 'col_0', 'col_a'], "").toUpperCase().trim();
@@ -2681,7 +2684,7 @@ function updateAdminStatsUI() {
   const globalListening = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'listening');
   const globalSpeaking = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'speaking');
   const globalHighlight = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'highlight');
-  const globalReading = allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'reading');
+  const globalReading = businessOnlyModes ? [] : allQuestions.filter(q => getQuestionMode(getFieldValue(normalizeKeys(q), ['type', 'col_1', 'col_b'])) === 'reading');
 
 
   const drawers = {
@@ -2705,12 +2708,20 @@ function updateAdminStatsUI() {
     let actualMode = targetMode === 'listening_gap_4' ? 'listening' : targetMode;
     let drawer = drawers[actualMode];
     if (drawer && drawer.hasQuestions) return drawer.draw();
-    const availableModes = ['cloze', 'scramble', 'listening', 'speaking', 'reading'].filter(m => drawers[m] && drawers[m].hasQuestions);
+    const availableModes = businessOnlyModes
+      ? ['cloze', 'scramble', 'listening', 'speaking'].filter(m => drawers[m] && drawers[m].hasQuestions)
+      : ['cloze', 'scramble', 'listening', 'speaking', 'reading'].filter(m => drawers[m] && drawers[m].hasQuestions);
     if (availableModes.length > 0) return drawers[availableModes[0]].draw();
     return null;
   }
 
-  const patternLayout = [
+  const patternLayout = businessOnlyModes ? [
+  'cloze', 'cloze', 'cloze', 'cloze', 'cloze', 'cloze',
+  'scramble', 'scramble', 'scramble', 'scramble', 'scramble', 'scramble',
+  'cloze', 'cloze', 'cloze', 'cloze', 'cloze', 'cloze',
+  'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4', 'listening_gap_4',
+  'speaking', 'speaking', 'speaking', 'speaking', 'speaking', 'speaking'
+] : [
   'cloze', 'cloze', 'cloze', 'cloze', 'cloze', 'cloze',
   'scramble', 'scramble', 'scramble', 'scramble', 'scramble', 'scramble',
   'cloze', 'cloze', 'cloze', 'cloze', 'cloze', 'cloze',
@@ -3450,7 +3461,7 @@ function updateAdminStatsUI() {
     }
 
     function playPraiseSound() {
-      const phrases = ['Good!', 'Very good!', 'Excellent!'];
+      const phrases = ['Good!', 'Very good!', 'Excellent!', 'Wow!', 'Ok!', 'Gotcha!'];
       const pick = phrases[Math.floor(Math.random() * phrases.length)];
       if (synth) {
         try {
