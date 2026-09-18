@@ -2266,6 +2266,17 @@ function updateAdminStatsUI() {
       }
     }
 
+    // Helper: fetch พร้อม timeout กันการค้างยาวๆ เมื่อเครือข่ายช้าหรือตัด
+    async function fetchWithTimeout(url, options, timeoutMs) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs || 8000);
+      try {
+        return await fetch(url, Object.assign({}, options || {}, { signal: controller.signal }));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     async function fetchSheetData(sheetName) {
       const sheetId = appState.settings.sheetId;
       if (!sheetId) return null;
@@ -2275,7 +2286,7 @@ function updateAdminStatsUI() {
       
       try {
         const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}`;
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, { method: "GET" }, 8000);
         if (response.ok) {
           const text = await response.text();
           if (!text.includes("<!DOCTYPE html>") && !text.includes("ServiceLogin")) {
@@ -2303,7 +2314,7 @@ function updateAdminStatsUI() {
       if (!rawRows && appState.settings.gasUrl) {
         try {
           const gasReadUrl = `${appState.settings.gasUrl}?action=read&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}&spreadsheetId=${appState.settings.sheetId}`;
-          const gasResponse = await fetch(gasReadUrl);
+          const gasResponse = await fetchWithTimeout(gasReadUrl, { method: "GET" }, 10000);
           const gasJson = await gasResponse.json();
           if (gasJson && gasJson.status === "success") {
             rawRows = gasJson.data;
@@ -2368,12 +2379,12 @@ function updateAdminStatsUI() {
         spreadsheetId: appState.settings.sheetId 
       };
       try {
-        await fetch(appState.settings.gasUrl, {
+        await fetchWithTimeout(appState.settings.gasUrl, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload)
-        });
+        }, 5000);
       } catch(e) {
         console.error("GAS logging error:", e);
       }
@@ -2404,12 +2415,12 @@ function updateAdminStatsUI() {
       };
 
       try {
-        await fetch(appState.settings.gasUrl, {
+        await fetchWithTimeout(appState.settings.gasUrl, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload)
-        });
+        }, 5000);
       } catch(e) {
         console.error("GAS Progress saving error:", e);
       }
@@ -5211,17 +5222,42 @@ function ensureModule4Panel() {
                   currentUserLevel = appState.user.level;
               }
 
+              // มีข้อสอบในแคชแล้ว → ขึ้นโจทย์ทันทีไม่ต้องดึงจากคลาวด์ซ้ำ (กันค้างเมื่อกลับมาเข้าหมวดที่ 4)
+              if (highlightQuestions.length > 0) {
+                  mod4Initialized = true;
+                  currentQuestionIndex = 0;
+                  mod4Score = 0;
+                  updateScoreBoard();
+                  loadQuestion(currentQuestionIndex);
+                  return;
+              }
+
               fetchHighlightQuestions();
               mod4Initialized = true;
+          }
+
+          // ดึง GAS URL / Sheet ID ที่ใช้งานจริงจาก appState.settings (ตั้งผ่าน URL/admin/localStorage ได้)
+          // เผื่อ DEFAULT_GAS_URL/DEFAULT_SHEET_ID ที่ hardcode ไว้อาจเป็นลิงก์เก่าแล้ว
+          function getEffectiveGasUrl() {
+              if (typeof appState !== 'undefined' && appState.settings && appState.settings.gasUrl) {
+                  return appState.settings.gasUrl;
+              }
+              return (typeof DEFAULT_GAS_URL !== 'undefined') ? DEFAULT_GAS_URL : "";
+          }
+          function getEffectiveSheetId() {
+              if (typeof appState !== 'undefined' && appState.settings && appState.settings.sheetId) {
+                  return appState.settings.sheetId;
+              }
+              return (typeof DEFAULT_SHEET_ID !== 'undefined') ? DEFAULT_SHEET_ID : "";
           }
 
           async function fetchUserLatestLevel(fallbackLevel) {
               const userCode = getCurrentUserCode();
               const fallback = fallbackLevel || currentUserLevel;
               try {
-                  const url = `${DEFAULT_GAS_URL}?action=read&sheet=progress&spreadsheetId=${DEFAULT_SHEET_ID}`;
+                  const url = `${getEffectiveGasUrl()}?action=read&sheet=progress&spreadsheetId=${getEffectiveSheetId()}`;
 
-                     const result = await fetchHighlightQuestionsWithRetry(url, 3, 1000);
+                     const result = await fetchHighlightQuestionsWithRetry(url, 2, 800, 6000);
 
                   if (result && result.status === 'success' && result.data && result.data.length > 0) {
                       const userLogs = result.data.filter(item => {
@@ -5241,17 +5277,22 @@ function ensureModule4Panel() {
               return fallback;
           }  
 
-// ฟังก์ชั่นดึงข้อมูลแบบมี Retry อัตโนมัติ
-async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) {
+// ฟังก์ชั่นดึงข้อมูลแบบมี Retry อัตโนมัติ (พร้อม Timeout กันเฟรมค้างหน้าจอโหลด)
+async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000, timeoutMs = 20000) {
   for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       // เพิ่ม timestamp ป้องกัน Browser Caching
       const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
       
       const response = await fetch(fetchUrl, {
         method: 'GET',
-        redirect: 'follow' // บังคับให้ Follow Redirect ของ Google
+        redirect: 'follow', // บังคับให้ Follow Redirect ของ Google
+        signal: controller.signal
       });
+
+      clearTimeout(timer);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -5261,7 +5302,8 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
       return data; // ดึงข้อมูลสำเร็จ ให้ส่งค่าย้อนกลับทันที
 
     } catch (error) {
-      console.warn(`พยายามเชื่อมต่อครั้งที่ ${i + 1} ล้มเหลว... กำลังลองใหม่`);
+      clearTimeout(timer);
+      console.warn(`พยายามเชื่อมต่อครั้งที่ ${i + 1} ล้มเหลว... กำลังลองใหม่`, error.name === 'AbortError' ? '(เวลาเกินกำหนด)' : error.message);
       
       // ถ้าลองครบตามจำนวนรอบแล้วยังไม่ได้ ให้โยน Error ออกไป
       if (i === retries - 1) throw error;
@@ -5278,74 +5320,128 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
          
           async function fetchHighlightQuestions() {
               const thaiElem = document.getElementById('thai-text');
-              thaiElem.innerText = '⏳ กำลังดึงข้อมูลแบบฝึกหัดจากฐานข้อมูล...';
+              thaiElem.innerText = '⏳ กำลังเตรียมแบบฝึกหัด...';
               thaiElem.classList.add('loading-status');
 
               try {
-                  currentUserLevel = await fetchUserLatestLevel();
+                  // ใช้ระดับผู้เรียนที่ได้ตอนล็อกอินเป็นหลักทันที ไม่ต้องรอโหลดจากคลาวด์
+                  if (typeof appState !== 'undefined' && appState.user && appState.user.level) {
+                      currentUserLevel = appState.user.level;
+                  }
 
                   document.getElementById('user-level-display').innerText = `ระดับผู้เรียน: ${currentUserLevel}`;
 
                   // แปลงระดับผู้เรียน ตัด -BIZ และตัวเลขย่อยออกเพื่อเทียบหมวดหลัก (เช่น A1, A2, B1)
-                  const baseUserLevel = currentUserLevel.replace(/-BIZ$/i, '').split('.')[0].toUpperCase();
-                  const userLevelWeight = CEFR_ORDER[currentUserLevel.toUpperCase()] || CEFR_ORDER[baseUserLevel] || 1;
+                  const baseUserLevel = String(currentUserLevel || '').replace(/[\s]/g, '').replace(/-BIZ$/i, '').split('.')[0].toUpperCase();
+                  const userLevelWeight = CEFR_ORDER[String(currentUserLevel || '').toUpperCase().trim()] || CEFR_ORDER[baseUserLevel] || 1;
 
-                  const url = `${DEFAULT_GAS_URL}?action=read&sheet=questions&spreadsheetId=${DEFAULT_SHEET_ID}`;
-                  const response = await fetch(url);
-                
-
-                  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-                  const result = await response.json();
-                  if (result.status === 'success' && result.data && result.data.length > 0) {
-                      const filtered = result.data.filter(item => {
-                          thaiElem.classList.remove('loading-status');
-                          const cleanType = String(item.type || item.Type || '').trim().toLowerCase();
-                          const isReadComp = cleanType.includes('readcomp') || cleanType.includes('reading');
-                          const itemLevelRaw = String(item.level || item.Level || 'A1').trim().toUpperCase();
-                          const itemBaseLevel = itemLevelRaw.replace(/-BIZ$/i, '').split('.')[0];
-                          const itemLevelWeight = CEFR_ORDER[itemLevelRaw] || CEFR_ORDER[itemBaseLevel] || 1;
-
-                          // เทียบระดับตรงกัน หรืออยู่ในหมวดระดับหลักเดียวกัน (รองรับระดับย่อยและ -BIZ)
-                            return isReadComp && (itemBaseLevel === baseUserLevel || itemLevelWeight === userLevelWeight);
-                      });
-
-                      if (filtered.length === 0) {
-                          thaiElem.innerText = `⚠️ ไม่พบข้อสอบที่เหมาะสมกับระดับ ${currentUserLevel}`;
-                          return;
-                      }
-
-                      highlightQuestions = filtered.map(item => transformToQuestionObject(item)).sort(() => 0.5 - Math.random()).slice(0, 10);
-                      currentQuestionIndex = 0;
-                      mod4Score = 0;
-                      updateScoreBoard();
-                      loadQuestion(currentQuestionIndex);
-                  } else {
-                      thaiElem.innerText = '⚠️ ไม่สามารถอ่านข้อมูลจาก Sheet ได้';
+                  // ดึงข้อมูลชุดเดียวกับระบบหลัก (fetchSheetData แบบ multi-fallback ที่โมดูลอื่นใช้สำเร็จ)
+                  // ใช้แคชจาก appState.db.questions ก่อน (เติมตอนล็อกอิน) ถ้ายังไม่มีค่อยดึงจากคลาวด์
+                  let questionRows = null;
+                  if (typeof appState !== 'undefined' && appState.db && Array.isArray(appState.db.questions) && appState.db.questions.length > 0) {
+                      questionRows = appState.db.questions;
                   }
+                  if (!questionRows) {
+                      try {
+                          if (typeof fetchSheetData === 'function') {
+                              questionRows = await fetchSheetData('questions');
+                          }
+                      } catch (e) {
+                          console.warn('Module4 fetchSheetData failed, fallback GAS direct:', e);
+                      }
+                  }
+
+                  // Fallback สุดท้าย: GAS action=read โดยตรง (ใช้ค่า effective ตัวเดียวกันกับระบบ)
+                  if (!questionRows && typeof getEffectiveGasUrl === 'function') {
+                      try {
+                          const url = `${getEffectiveGasUrl()}?action=read&sheet=questions&spreadsheetId=${getEffectiveSheetId()}`;
+                          const gasResult = await fetchHighlightQuestionsWithRetry(url, 2, 800, 10000);
+                          if (gasResult && gasResult.status === 'success' && Array.isArray(gasResult.data) && gasResult.data.length > 0) {
+                              questionRows = gasResult.data;
+                          }
+                      } catch (e) {
+                          console.error('Module4 GAS direct fallback failed:', e);
+                      }
+                  }
+
+                  // ดึงระดับล่าสุดแบบเบื้องหลัง (ไม่บล็อกการแสดงผล; ถ้าได้ก็ปรับปรุงค่าทีหลัง)
+                  fetchUserLatestLevel(currentUserLevel).then(latestLevel => {
+                      if (latestLevel && latestLevel !== currentUserLevel) {
+                          currentUserLevel = latestLevel;
+                          document.getElementById('user-level-display').innerText = `ระดับผู้เรียน: ${currentUserLevel}`;
+                      }
+                  }).catch(() => {});
+
+                  if (!questionRows || questionRows.length === 0) {
+                      thaiElem.classList.remove('loading-status');
+                      thaiElem.innerText = '⚠️ ไม่สามารถอ่านข้อมูลจาก Sheet ได้';
+                      return;
+                  }
+
+                  // ปกติคำชื่อคอลัมน์จาก fetchSheetData ถูก normalize เป็น lowercase แล้ว (type/level)
+                  const cleanLevelOf = (item) => {
+                      const raw = String(getFieldValue(item, ['level', 'ระดับ', 'Level/CEFR', 'cefr', 'col_0', 'col_a'], ''))
+                          .replace(/[\s]/g, '').toUpperCase().trim();
+                      return raw.replace(/-BIZ$/i, '').split('.')[0].trim();
+                  };
+                  const cleanTypeOf = (item) => {
+                      // อ่านชนิดจากคอลัมน์ type (col_1/col_b) เหมือน module 1 ที่อ่านจาก Sheet จริง
+                      return String(getFieldValue(item, ['type', 'col_1', 'col_b', 'ประเภท', 'ชนิดข้อสอบ'], '')).trim().toLowerCase();
+                  };
+
+                  // ฟังก์ชันช่วย: บอกว่าแถวมีประโยค/คำถามใช้ได้หรือไม่
+                  const validRow = (item) => {
+                      return getFieldValue(item, ['question', 'คำถาม', 'โจทย์', 'sentence', 'english', 'text', 'col_2', 'col_c'], '').length > 0;
+                  };
+                  // ฟังก์ชันช่วย: เทียบระดับหลัก (ตัด -BIZ / ระดับย่อย) ทั้งสองฝั่ง
+                  const levelMatch = (item) => {
+                      const b = cleanLevelOf(item);
+                      const w = CEFR_ORDER[b] || 1;
+                      return (b === baseUserLevel) || (w === userLevelWeight);
+                  };
+                  // หมวด 4 = Reading Comprehension: กรองเฉพาะข้อสอบประเภท อ่าน/reading เท่านั้น (อ่านจาก type เดียวกับ module 1)
+                  // ใช้ logic แบบเดียวกับ getQuestionMode แต่เขียนใน local (ฟังก์ชันนั้น nested อยู่ module อื่น เรียกข้ามมาไม่ได้)
+                  const isReadingType = (item) => {
+                      const clean = cleanTypeOf(item).replace(/\s+/g, '');
+                      if (clean.includes('recomp') || clean.includes('readcomp') || clean.includes('reading') || clean.includes('comprehension')) return true;
+                      return false;
+                  };
+
+                  // เลือกเฉพาะบทอ่าน: 1) ระดับตรง + อ่าน   2) อ่านทุกระดับ (สำรอง เมื่อระดับนั้นไม่มีบทอ่าน)
+                  let filtered = questionRows.filter(item => validRow(item) && levelMatch(item) && isReadingType(item));
+                  if (filtered.length === 0) {
+                      filtered = questionRows.filter(item => validRow(item) && isReadingType(item));
+                  }
+
+                  thaiElem.classList.remove('loading-status');
+
+                  if (filtered.length === 0) {
+                      thaiElem.innerText = `⚠️ ไม่พบบทอ่าน (อ่าน/Reading) ที่เหมาะกับระดับ ${baseUserLevel || currentUserLevel}`;
+                      return;
+                  }
+
+                  highlightQuestions = filtered.map(item => transformToQuestionObject(item)).sort(() => 0.5 - Math.random()).slice(0, 10);
+                  currentQuestionIndex = 0;
+                  mod4Score = 0;
+                  updateScoreBoard();
+                  loadQuestion(currentQuestionIndex);
               } catch (error) {
                   console.error('Fetch error:', error);
+                  thaiElem.classList.remove('loading-status');
                   thaiElem.innerText = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อข้อมูล กรุณาลองใหม่อีกครั้ง';
+                  thaiElem.innerHTML = '❌ เกิดข้อผิดพลาดในการเชื่อมต่อข้อมูล<br><button onclick="initModule4()" class="mt-2 bg-slate-700 hover:bg-slate-800 text-white font-medium text-xs px-4 py-2 rounded-lg">🔄 ลองใหม่อีกครั้ง</button>';
               }
           }
 
           function transformToQuestionObject(item) {
-              // 1. ดึงประโยคภาษาอังกฤษ (ดักจับชื่อคอลัมน์ได้หลายรูปแบบ)
-              const questionStr = String(
-                  item.question || item.Question || item.sentence || item.Sentence ||
-                  item.english || item.English || item['คำถาม'] || item['ประโยค'] || ''
-              ).trim();
+              // 1. ดึงประโยคภาษาอังกฤษ (ดักจับชื่อคอลัมน์ได้หลายรูปแบบ เหมือน module 1)
+              const questionStr = String(getFieldValue(item, ['question', 'คำถาม', 'โจทย์', 'sentence', 'english', 'text', 'col_2', 'col_c'], '')).trim();
 
-              // 2. ดึงคำถาม
-              const thaiTranslation = String(
-                  item.thai || item.Thai || item.translation || item.Translation ||
-                  item['คำถาม'] || item[''] || ''
-              ).trim();
+              // 2. ดึงคำถาม (คำแปลไทย)
+              const thaiTranslation = String(getFieldValue(item, ['thai translation', 'thai', 'คำแปล', 'translation', 'col_8', 'col_i'], '')).trim();
 
               // 3. ดึงเฉลย (ถ้าใน Sheet ไม่มีคอลัมน์เฉลย ให้ใช้ประโยคภาษาอังกฤษเป็นเฉลยหลัก)
-              const correctAnswerStr = String(
-                  item.answer || item.Answer || item['เฉลย'] || item['คำตอบ'] || questionStr
-              ).trim();
+              const correctAnswerStr = String(getFieldValue(item, ['answer', 'คำตอบ', 'เฉลย', 'col_3', 'col_d'], '')).trim() || questionStr;
 
               // แยกประโยคออกเป็นคำๆ
               // const cleanedQuestion = questionStr.replace(/[.,?!/\\#$%\^&\*;:{}=\-_`~()"]/g, "");
@@ -5541,7 +5637,7 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
               const payload = {
                   action: "saveProgress",
                   sheet: "progress",
-                  spreadsheetId: (typeof DEFAULT_SHEET_ID !== 'undefined') ? DEFAULT_SHEET_ID : "",
+                  spreadsheetId: (typeof getEffectiveSheetId === 'function') ? getEffectiveSheetId() : (typeof DEFAULT_SHEET_ID !== 'undefined' ? DEFAULT_SHEET_ID : ""),
                   category: "Reading Comp.",
                   score: scoreFormatted,
                   level: userLevel,
@@ -5550,7 +5646,7 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000) 
               };
 
               try {
-                  const targetUrl = (typeof DEFAULT_GAS_URL !== 'undefined') ? DEFAULT_GAS_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+                  const targetUrl = (typeof getEffectiveGasUrl === 'function') ? getEffectiveGasUrl() : (typeof DEFAULT_GAS_URL !== 'undefined' ? DEFAULT_GAS_URL : (typeof API_URL !== 'undefined' ? API_URL : ""));
 
                   await fetch(targetUrl, {
                       method: 'POST',
@@ -5995,7 +6091,606 @@ function updateNextButtonState() {
 // มีคะแนนเต็ม 10 และไม่ปรับระดับ CEFR (การฟังเพื่อความแม่นยำเท่านั้น)
 // ============================================================
 
-const CONFUSING_WORD_SETS = [
+const CONFUSING_WORD_SETS = [  { w: ["ate", "eight", "ait", "hate"], t: ["ได้กินแล้ว", "แปด", "เกาะเล็ก", "เกลียด"] },
+  { w: ["all", "awl", "ore", "or"], t: ["ทั้งหมด", "สว่าน", "แร่", "หรือ"] },
+  { w: ["bye", "buy", "high", "hay"], t: ["ลาก่อน", "ซื้อ", "สูง", "หญ้าแห้ง"] },
+  { w: ["way", "weigh", "whey", "weighs"], t: ["ทาง", "ชั่งน้ำหนัก", "หางนม", "ชั่งแล้ว"] },
+  { w: ["wait", "weight", "wet", "wheat"], t: ["รอ", "น้ำหนัก", "เปียก", "ข้าวสาลี"] },
+  { w: ["straight", "strait", "street", "stray"], t: ["ตรง", "ช่องแคบ", "ถนน", "หลงทาง"] },
+  { w: ["gate", "gait", "great", "get"], t: ["ประตู", "การเดิน", "ยิ่งใหญ่", "ได้"] },
+  { w: ["late", "lay", "lie", "light"], t: ["สาย", "วาง", "โกหก/นอน", "แสง"] },
+  { w: ["date", "debt", "die", "dye"], t: ["วันที่", "หนี้", "ตาย", "ย้อมสี"] },
+  { w: ["fate", "feet", "feat", "fit"], t: ["ชะตากรรม", "เท้า", "ความสำเร็จ", "พอดี"] },
+  { w: ["hate", "hard", "hurt", "hot"], t: ["เกลียด", "แข็ง", "เจ็บ", "ร้อน"] },
+  { w: ["made", "maid", "may", "mate"], t: ["ทำแล้ว", "สาวใช้", "อาจจะ", "เพื่อน/คู่"] },
+  { w: ["trade", "tread", "tray", "trace"], t: ["การค้า", "เหยียบ", "ถาด", "ร่องรอย"] },
+  { w: ["laid", "lad", "lead", "lend"], t: ["วางแล้ว", "หนุ่ม", "นำ/ตะกั่ว", "ให้ยืม"] },
+  { w: ["paid", "pad", "pat", "put"], t: ["จ่ายแล้ว", "เบาะ", "ลูบ", "วาง"] },
+  { w: ["raid", "red", "road", "rude"], t: ["บุกจู่โจม", "สีแดง", "ถนน", "หยาบคาย"] },
+  { w: ["brake", "break", "brick", "bread"], t: ["เบรก", "แตก", "อิฐ", "ขนมปัง"] },
+  { w: ["nail", "knell", "null", "snail"], t: ["เล็บ", "เสียงระฆัง", "เป็นโมฆะ", "หอยทาก"] },
+  { w: ["pale", "pail", "peel", "pill"], t: ["ซีด", "ถัง", "เปลือก", "ยาเม็ด"] },
+  { w: ["sale", "sail", "cell", "seal"], t: ["การขาย", "แล่นเรือ", "เซลล์", "ตราประทับ"] },
+  { w: ["stale", "steal", "steel", "still"], t: ["เก่า/ค้าง", "ขโมย", "เหล็ก", "ยังคง"] },
+  { w: ["rail", "rule", "real", "roll"], t: ["รางรถไฟ", "กฎ", "จริง", "ม้วน"] },
+  { w: ["fail", "feel", "fill", "full"], t: ["ล้มเหลว", "รู้สึก", "เติม", "เต็ม"] },
+  { w: ["wail", "well", "whale", "wheel"], t: ["ร่ำไห้", "ดี/บ่อน้ำ", "วาฬ", "ล้อ"] },
+  { w: ["gale", "goal", "grill", "girl"], t: ["ลมกระโชก", "เป้าหมาย", "ย่าง", "เด็กหญิง"] },
+  { w: ["draft", "drift", "daft", "raft"], t: ["ร่าง/แบบ", "ลอยเลื่อน", "โง่", "แพ"] },
+  { w: ["laugh", "love", "leave", "live"], t: ["หัวเราะ", "รัก", "ลา/จาก", "อยู่อาศัย"] },
+  { w: ["staff", "stuff", "stiff", "stove"], t: ["พนักงาน", "สิ่งของ", "แข็งทื่อ", "เตา"] },
+  { w: ["half", "have", "heave", "hive"], t: ["ครึ่ง", "มี", "ยกขึ้น", "รังผึ้ง"] },
+  { w: ["calf", "cough", "coff", "calm"], t: ["ลูกวัว", "ไอ", "(คำโบราณ)", "สงบ"] },
+  { w: ["quart", "court", "cart", "caught"], t: ["ควอร์ต", "ศาล", "รถเข็น", "จับได้"] },
+  { w: ["wart", "worth", "port", "part"], t: ["หูด", "คุ้มค่า", "ท่าเรือ", "ส่วน"] },
+  { w: ["war", "wore", "were", "where"], t: ["สงคราม", "สวมแล้ว", "เป็น", "ที่ไหน"] },
+  { w: ["sword", "soar", "sore", "saw"], t: ["ดาบ", "โผบิน", "เจ็บ", "เลื่อย"] },
+  { w: ["ford", "four", "for", "fairy"], t: ["ฟอร์ด", "สี่", "สำหรับ", "นางฟ้า"] },
+  { w: ["born", "barn", "burn", "bone"], t: ["เกิด", "ยุ้งฉาง", "เผา", "กระดูก"] },
+  { w: ["corn", "coin", "cane", "gone"], t: ["ข้าวโพด", "เหรียญ", "ไม้เท้า", "ไปแล้ว"] },
+  { w: ["horn", "harm", "hymn", "ham"], t: ["เขาสัตว์", "อันตราย", "เพลงสวด", "แฮม"] },
+  { w: ["torn", "turn", "tern", "tomb"], t: ["ฉีกขาด", "เลี้ยว", "นกนางนวล", "หลุมฝังศพ"] },
+  { w: ["score", "scour", "scare", "scale"], t: ["คะแนน", "ขัดถู", "ทำให้กลัว", "มาตราส่วน"] },
+  { w: ["shore", "sure", "share", "sheer"], t: ["ชายฝั่ง", "แน่ใจ", "แบ่งปัน", "โปร่งใส"] },
+  { w: ["more", "moor", "maw", "mud"], t: ["มากกว่า", "ทุ่งกว้าง", "ปากสัตว์", "โคลน"] },
+  { w: ["adore", "odor", "order", "either"], t: ["รักมาก", "กลิ่น", "คำสั่ง", "อย่างใดอย่างหนึ่ง"] },
+  { w: ["core", "corps", "coarse", "course"], t: ["แกนกลาง", "กองทหาร", "หยาบ", "หลักสูตร"] },
+  { w: ["floor", "flaw", "flow", "flew"], t: ["พื้น", "ข้อบกพร่อง", "ไหล", "บินแล้ว"] },
+  { w: ["force", "fourth", "forth", "fought"], t: ["แรง", "ที่สี่", "ไปข้างหน้า", "ต่อสู้แล้ว"] },
+  { w: ["hoarse", "horse", "hose", "hoes"], t: ["เสียงแหบ", "ม้า", "สายยาง", "จอบ"] },
+  { w: ["lore", "law", "low", "loft"], t: ["ตำนาน", "กฎหมาย", "ต่ำ", "ห้องใต้หลังคา"] },
+  { w: ["snore", "snare", "sneer", "snap"], t: ["กรน", "กับดัก", "เยาะเย้ย", " snapped"] },
+  { w: ["bore", "boar", "bare", "bear"], t: ["เบื่อ", "หมูป่า", "เปลือย", "หมี/แบก"] },
+  { w: ["pore", "pour", "poor", "pair"], t: ["รูขุมขน", "เท", "ยากจน", "คู่"] },
+  { w: ["tore", "tour", "tower", "tar"], t: ["ฉีกแล้ว", "ทัวร์", "หอคอย", "น้ำมันดิน"] },
+  { w: ["wore", "worry", "wiry", "wear"], t: ["สวมแล้ว", "กังวล", "เป็นลวด", "สวมใส่"] },
+  { w: ["clothes", "close", "claws", "clause"], t: ["เสื้อผ้า", "ปิด/ใกล้", "กรงเล็บ", "ข้อกำหนด"] },
+  { w: ["gross", "grows", "grass", "grace"], t: ["ขั้นต้น", "เติบโต", "หญ้า", "ความสง่างาม"] },
+  { w: ["cost", "coast", "cast", "cust"], t: ["ต้นทุน", "ชายฝั่ง", "เหวี่ยง", "(คำย่อ)"] },
+  { w: ["most", "moat", "must", "mast"], t: ["มากที่สุด", "คูน้ำ", "ต้อง", "เสากระโดง"] },
+  { w: ["roast", "wrote", "rote", "rate"], t: ["ย่าง", "เขียนแล้ว", "การท่องจำ", "อัตรา"] },
+  { w: ["toast", "tossed", "taste", "test"], t: ["ขนมปังปิ้ง", "ถูกโยน", "รสชาติ", "การทดสอบ"] },
+  { w: ["post", "lost", "loft", "past"], t: ["ไปรษณีย์", "หลงทาง", "ห้องใต้หลังคา", "อดีต"] },
+  { w: ["host", "ghost", "hose", "haste"], t: ["เจ้าภาพ", "ผี", "สายยาง", "ความรีบเร่ง"] },
+  { w: ["oar", "ore", "or", "hour"], t: ["พายเรือ", "แร่", "หรือ", "ชั่วโมง"] },
+  { w: ["our", "are", "hour", "err"], t: ["ของเรา", "เป็น", "ชั่วโมง", "ทำพลาด"] },
+  { w: ["flour", "flower", "floor", "flow"], t: ["แป้ง", "ดอกไม้", "พื้น", "ไหล"] },
+  { w: ["power", "pore", "pour", "poor"], t: ["พลัง", "รูขุมขน", "เท", "ยากจน"] },
+  { w: ["tower", "tore", "tour", "tar"], t: ["หอคอย", "ฉีกแล้ว", "ทัวร์", "น้ำมันดิน"] },
+  { w: ["cower", "coward", "cover", "coffer"], t: ["ย่อตัว", "คนขี้ขลาด", "ปกคลุม", "หีบสมบัติ"] },
+  { w: ["shower", "sour", "sed", "shed"], t: ["อาบน้ำ", "เปรี้ยว", "(คำย่อ)", "โรงเรือน"] },
+  { w: ["crown", "clown", "crone", "crane"], t: ["มงกุฎ", "ตัวตลก", "หญิงแก่", "นกกระเรียน"] },
+  { w: ["town", "tune", "ton", "tore"], t: ["เมือง", "ทำนอง", "ตัน", "ฉีกแล้ว"] },
+  { w: ["drown", "drawn", "drone", "drain"], t: ["จมน้ำ", "ถูกวาด", "โดรน", "ท่อระบายน้ำ"] },
+  { w: ["swallow", "wallow", "follow", "pillow"], t: ["กลืน", "กลิ้งเกลือก", "ตาม", "หมอน"] },
+  { w: ["tomorrow", "morrow", "hollow", "fellow"], t: ["พรุ่งนี้", "เช้า", "กลวง", "เพื่อน"] },
+  { w: ["yellow", "yell", "fellow", "hallow"], t: ["สีเหลือง", "ตะโกน", "เพื่อน", "ศักดิ์สิทธิ์"] },
+  { w: ["elbow", "hello", "hollow", "hedge"], t: ["ข้อศอก", "สวัสดี", "กลวง", "รั้ว"] },
+  { w: ["brown", "browse", "brawn", "bronze"], t: ["สีน้ำตาล", "ท่องเว็บ", "พละกำลัง", "ทองสัมฤทธิ์"] },
+  { w: ["mouth", "moth", "mouse", "moose"], t: ["ปาก", "ผีเสื้อกลางคืน", "หนู", "กวางมูส"] },
+  { w: ["north", "worth", "birth", "bath"], t: ["เหนือ", "คุ้มค่า", "เกิด", "อาบน้ำ"] },
+  { w: ["truth", "trout", "trust", "thrust"], t: ["ความจริง", "ปลาเทราต์", "เชื่อใจ", "ผลัก"] },
+  { w: ["both", "boat", "bolt", "bode"], t: ["ทั้งสอง", "เรือ", "สลัก", "ลางบอกเหตุ"] },
+  { w: ["cloth", "clothe", "close", "clove"], t: ["ผ้า", "สวมใส่", "ปิด", "กานพลู"] },
+  { w: ["tooth", "truth", "toss", "tool"], t: ["ฟัน", "ความจริง", "โยน", "เครื่องมือ"] },
+  { w: ["month", "moth", "mount", "ink"], t: ["เดือน", "ผีเสื้อกลางคืน", "ปีน", "หมึก"] },
+  { w: ["thin", "thing", "thigh", "tick"], t: ["บาง", "สิ่งของ", "ต้นขา", "เห็บ"] },
+  { w: ["that", "than", "then", "there"], t: ["นั้น", "กว่า", "แล้ว", "ที่นั่น"] },
+  { w: ["through", "threw", "throw", "sow"], t: ["ผ่าน", "โยนแล้ว", "โยน", "หว่าน"] },
+  { w: ["throw", "three", "so", "low"], t: ["โยน", "สาม", "ดังนั้น", "ต่ำ"] },
+  { w: ["thread", "threat", "tread", "treat"], t: ["เส้นด้าย", "ภัยคุกคาม", "เหยียบ", "เลี้ยง/ปฏิบัติ"] },
+  { w: ["throat", "throne", "thorn", "throb"], t: ["คอ", "บัลลังก์", "หนาม", "เต้นตุบ"] },
+  { w: ["thirst", "first", "worst", "wrist"], t: ["กระหาย", "แรก", "แย่ที่สุด", "ข้อมือ"] },
+  { w: ["bird", "beard", "board", "bored"], t: ["นก", "เครา", "กระดาน", "เบื่อ"] },
+  { w: ["hurt", "heart", "heat", "hat"], t: ["เจ็บ", "หัวใจ", "ความร้อน", "หมวก"] },
+  { w: ["squirrel", "squirt", "world", "swirl"], t: ["กระรอก", "ฉีด", "โลก", "วนเวียน"] },
+  { w: ["word", "world", "worth", "worse"], t: ["คำ", "โลก", "คุ้มค่า", "แย่กว่า"] },
+  { w: ["work", "wok", "woke", "walk"], t: ["ทำงาน", "กระทะจีน", "ตื่นแล้ว", "เดิน"] },
+  { w: ["nurse", "north", "nerve", "noise"], t: ["พยาบาล", "เหนือ", "เส้นประสาท", "เสียงรบกวน"] },
+  { w: ["person", "parson", "purse", "parcel"], t: ["บุคคล", "บาทหลวง", "กระเป๋าสตางค์", "พัสดุ"] },
+  { w: ["certain", "curtain", "coin", "coil"], t: ["แน่นอน", "ม่าน", "เหรียญ", "ขดลวด"] },
+  { w: ["burn", "born", "berne", "barn"], t: ["เผาไหม้", "เกิด", "(เมืองสวิต)", "ยุ้งฉาง"] },
+  { w: ["church", "chirp", "cheap", "chip"], t: ["โบสถ์", "เจี๊ยบ", "ราคาถูก", "มันฝรั่งทอดแผ่น"] },
+  { w: ["surface", "surf", "serve", "serf"], t: ["พื้นผิว", "โต้คลื่น", "เสิร์ฟ", "ทาสติดที่ดิน"] },
+  { w: ["purpose", "porpoise", "prose", "purses"], t: ["จุดประสงค์", "โลมาหัวบาตร", "ร้อยแก้ว", "กระเป๋าสตางค์"] },
+  { w: ["earn", "urn", "ern", "yearn"], t: ["หาเงิน", "โกศ", "(คำโบราณ)", "โหยหา"] },
+  { w: ["learn", "lane", "lean", "lawn"], t: ["เรียนรู้", "เลน", "เอน/ผอม", "สนามหญ้า"] },
+  { w: ["earth", "ear", "err", "air"], t: ["โลก", "หู", "ทำพลาด", "อากาศ"] },
+  { w: ["early", "earl", "yearly", "urging"], t: ["เช้า", "ขุนนาง", "ทุกปี", "เร่งเร้า"] },
+  { w: ["girl", "goal", "gill", "grill"], t: ["เด็กหญิง", "เป้าหมาย", "เหงือกปลา", "ย่าง"] },
+  { w: ["curl", "curb", "curd", "irk"], t: ["หยิก", "ขอบถนน", "นมเปรี้ยว", "รำคาญ"] },
+  { w: ["world", "whirled", "word", "wired"], t: ["โลก", "หมุนวน", "คำ", "เชื่อมสาย"] },
+  { w: ["worst", "wurst", "worse", "waist"], t: ["แย่ที่สุด", "ไส้กรอก", "แย่กว่า", "เอว"] },
+  { w: ["fierce", "force", "fare", "fair"], t: ["ดุร้าย", "แรง", "ค่าโดยสาร", "ยุติธรรม"] },
+  { w: ["thirsty", "thirty", "thirteen", "thunder"], t: ["กระหายน้ำ", "สามสิบ", "สิบสาม", "ฟ้าร้อง"] },
+  { w: ["skirt", "shirt", "short", "sport"], t: ["กระโปรง", "เสื้อเชิ้ต", "สั้น", "กีฬา"] },
+  { w: ["circle", "sickle", "circa", "circus"], t: ["วงกลม", "เคียว", "ประมาณ", "ละครสัตว์"] },
+  { w: ["birth", "berth", "bride", "breadth"], t: ["เกิด", "ที่นอนเรือ", "เจ้าสาว", "ความกว้าง"] },
+  { w: ["girth", "earth", "err", "hurth"], t: ["เส้นรอบเอว", "โลก", "ทำพลาด", "(คำโบราณ)"] },
+  { w: ["year", "yore", "your", "you're"], t: ["ปี", "ยุคโบราณ", "ของคุณ", "คุณคือ"] },
+  { w: ["cream", "crime", "crane", "crown"], t: ["ครีม", "อาชญากรรม", "นกกระเรียน", "มงกุฎ"] },
+  { w: ["stream", "steam", "stray", "stroke"], t: ["ลำธาร", "ไอน้ำ", "หลงทาง", "จังหวะ/ลากเส้น"] },
+  { w: ["dream", "drum", "drama", "drop"], t: ["ฝัน", "กลอง", "ละคร", "หยด"] },
+  { w: ["seam", "seem", "theme", "team"], t: ["รอยต่อ", "ดูเหมือน", "ธีม", "ทีม"] },
+  { w: ["bean", "been", "bin", "boon"], t: ["ถั่ว", "เป็นมาแล้ว", "ถัง", "พร"] },
+  { w: ["mean", "mien", "mine", "moon"], t: ["หมายถึง", "ท่าทาง", "เหมือง/ของฉัน", "ดวงจันทร์"] },
+  { w: ["lean", "lien", "lane", "linen"], t: ["เอน/ผอม", "สิทธิ์ยึดทรัพย์", "เลน", "ผ้าลินิน"] },
+  { w: ["clean", "clan", "clown", "cleat"], t: ["สะอาด", "ตระกูล", "ตัวตลก", "ปุ่มตะปู"] },
+  { w: ["green", "grain", "grand", "grind"], t: ["สีเขียว", "เมล็ดข้าว", "ยิ่งใหญ่", "บด"] },
+  { w: ["queen", "quean", "keen", "kin"], t: ["ราชินี", "หญิงโสเภณี(โบราณ)", "กระตือรือร้น", "ญาติ"] },
+  { w: ["scene", "seen", "sin", "sign"], t: ["ฉาก", "เห็นแล้ว", "บาป", "ป้าย"] },
+  { w: ["screen", "scream", "scree", "stream"], t: ["จอ", "กรีดร้อง", "หินกรวด", "ลำธาร"] },
+  { w: ["between", "beetle", "bitter", "bitten"], t: ["ระหว่าง", "ด้วง", "ขม", "ถูกกัด"] },
+  { w: ["teen", "tine", "team", "tone"], t: ["วัยรุ่น", "ซี่ง่าม", "ทีม", "โทนเสียง"] },
+  { w: ["keen", "king", "kind", "kink"], t: ["กระตือรือร้น", "กษัตริย์", "ใจดี", "ขอด"] },
+  { w: ["gen", "gin", "gym", "jam"], t: ["(คำย่อ)", "จิน", "ยิม", "แยม"] },
+  { w: ["penny", "pennant", "piano", "pinny"], t: ["เพนนี", "ธงเรือ", "เปียโน", "ผ้ากันเปื้อน"] },
+  { w: ["candle", "handle", "scandal", "cannon"], t: ["เทียน", "จับ/ที่จับ", "เรื่องอื้อฉาว", "ปืนใหญ่"] },
+  { w: ["tangle", "mangle", "single", "tunnel"], t: ["พัวพัน", "บดขยี้", "เดี่ยว", "อุโมงค์"] },
+  { w: ["jungle", "jingle", "giggle", "single"], t: ["ป่าดงดิบ", "เสียงกรุ๊งกริ๊ง", "หัวเราะคิก", "เดี่ยว"] },
+  { w: ["angle", "angel", "anchor", "anger"], t: ["มุม", "เทวดา", "สมอ", "ความโกรธ"] },
+  { w: ["simple", "cymbal", "symbol", "temple"], t: ["ง่าย", "ฉิ่ง", "สัญลักษณ์", "วัด"] },
+  { w: ["temple", "ample", "simple", "sample"], t: ["วัด", "พอเพียง", "ง่าย", "ตัวอย่าง"] },
+  { w: ["summary", "summery", "summit", "supply"], t: ["สรุป", "ในฤดูร้อน", "ยอดเขา", "จัดหา"] },
+  { w: ["money", "funny", "honey", "sunny"], t: ["เงิน", "ตลก", "น้ำผึ้ง", "มีแดด"] },
+  { w: ["monk", "monkey", "month", "mound"], t: ["พระ", "ลิง", "เดือน", "เนินดิน"] },
+  { w: ["onion", "union", "unison", "ounce"], t: ["หัวหอม", "สหภาพ", "พร้อมเพรียง", "ออนซ์"] },
+  { w: ["among", "amount", "amass", "amuse"], t: ["ท่ามกลาง", "จำนวน", "สะสม", "ทำให้ขบขัน"] },
+  { w: ["understand", "understood", "undertook", "underside"], t: ["เข้าใจ", "เข้าใจแล้ว", "รับทำ", "ด้านใต้"] },
+  { w: ["hundred", "thunder", "wonder", "wander"], t: ["ร้อย", "ฟ้าร้อง", "สงสัย", "เดินเพ่นพ่าน"] },
+  { w: ["wonder", "wander", "winder", "widow"], t: ["สงสัย", "เดินเพ่นพ่าน", "เครื่องม้วน", "แม่ม่าย"] },
+  { w: ["young", "youth", "yawn", "yank"], t: ["หนุ่ม", "เยาวชน", "หาว", "กระตุก"] },
+  { w: ["country", "county", "count", "cousin"], t: ["ประเทศ", "เคาน์ตี้", "นับ", "ลูกพี่ลูกน้อง"] },
+  { w: ["cousin", "cozen", "cushion", "cation"], t: ["ลูกพี่ลูกน้อง", "หลอกลวง", "เบาะรอง", "(ไอออน)"] },
+  { w: ["trouble", "tremble", "triple", "tumble"], t: ["ปัญหา", "สั่นเทา", "สามเท่า", "กลิ้งตก"] },
+  { w: ["double", "doubt", "duck", "dust"], t: ["คู่/สองเท่า", "สงสัย", "เป็ด", "ฝุ่น"] },
+  { w: ["couple", "copy", "supper", "upper"], t: ["คู่รัก/สอง", "สำเนา", "มื้อค่ำ", "บน"] },
+  { w: ["rough", "ruff", "rug", "rain"], t: ["ขรุขระ", "ปลอกคอขน", "พรม", "ฝน"] },
+  { w: ["tough", "tuff", "stuff", "stove"], t: ["แข็งแกร่ง", "หินภูเขาไฟ", "สิ่งของ", "เตา"] },
+  { w: ["enough", "enuf", "snuff", "knock"], t: ["พอเพียง", "(คำย่อ)", "ยาสูบ", "เคาะ"] },
+  { w: ["though", "dough", "dove", "debt"], t: ["แม้ว่า", "แป้งโด", "นกพิราบ", "หนี้"] },
+  { w: ["thought", "taught", "taut", "tot"], t: ["ความคิด", "สอนแล้ว", "ตึง", "เด็กเล็ก"] },
+  { w: ["bought", "boat", "boast", "bode"], t: ["ซื้อแล้ว", "เรือ", "โอ้อวด", "ลางบอกเหตุ"] },
+  { w: ["fought", "fault", "foam", "fond"], t: ["ต่อสู้แล้ว", "ความผิด", "โฟม", "ชื่นชอบ"] },
+  { w: ["caught", "court", "cot", "cough"], t: ["จับได้", "ศาล", "เตียงพับ", "ไอ"] },
+  { w: ["naught", "not", "knot", "note"], t: ["ศูนย์/เปล่า", "ไม่", "ปม", "บันทึก"] },
+  { w: ["daughter", "doctor", "docker", "decker"], t: ["ลูกสาว", "หมอ", "คนงานท่าเรือ", "ดาดฟ้า"] },
+  { w: ["laughter", "slaughter", "latter", "later"], t: ["เสียงหัวเราะ", "ฆ่าฟัน", "อย่างหลัง", "ทีหลัง"] },
+  { w: ["should", "shod", "shoved", "shade"], t: ["ควร", "สวมรองเท้า", "ผลัก", "ร่มเงา"] },
+  { w: ["would", "wood", "wade", "weep"], t: ["จะ(would)", "ไม้", "ลุยน้ำ", "ร้องไห้"] },
+  { w: ["brother", "bother", "boulder", "butter"], t: ["พี่น้องชาย", "รบกวน", "หินก้อนใหญ่", "เนย"] },
+  { w: ["mother", "mutter", "murmur", "mount"], t: ["แม่", "พึมพำ", "เสียงพึมพำ", "ปีน"] },
+  { w: ["another", "any", "anger", "angel"], t: ["อีกอันหนึ่ง", "ใดๆ", "ความโกรธ", "เทวดา"] },
+  { w: ["other", "utter", "otter", "outer"], t: ["อื่น", "เปล่งเสียง", "นาก", "ด้านนอก"] },
+  { w: ["together", "gather", "getter", "tether"], t: ["ด้วยกัน", "รวบรวม", "ผู้ได้รับ", "ผูกมัด"] },
+  { w: ["weather", "whether", "wither", "whither"], t: ["อากาศ", "ไม่ว่า", "เหี่ยวเฉา", "ที่ใด"] },
+  { w: ["leather", "rather", "lather", "father"], t: ["หนัง", "ค่อนข้าง", "ฟองสบู่", "พ่อ"] },
+  { w: ["feather", "further", "father", "fender"], t: ["ขนนก", "ไกลออกไป", "พ่อ", "บังโคลน"] },
+  { w: ["nothing", "noting", "nodding", "gnawing"], t: ["ไม่มีอะไร", "จดบันทึก", "พยักหน้า", "แทะ"] },
+  { w: ["something", "sometime", "somewhere", "someone"], t: ["บางสิ่ง", "บางครั้ง", "ที่ไหนสักแห่ง", "บางคน"] },
+  { w: ["anything", "anyone", "anymore", "anyway"], t: ["สิ่งใดๆ", "ใครก็ได้", "อีกต่อไป", "อย่างใดก็ตาม"] },
+  { w: ["everything", "everywhere", "eavesdrop", "everyday"], t: ["ทุกสิ่ง", "ทุกที่", "แอบฟัง", "ทุกวัน"] },
+  { w: ["bread", "bred", "broad", "breed"], t: ["ขนมปัง", "เพาะพันธุ์", "กว้าง", "พันธุ์"] },
+  { w: ["breakfast", "break", "brisk", "biscuit"], t: ["อาหารเช้า", "แตก", "ปราดเปรียว", "บิสกิต"] },
+  { w: ["heavy", "havy", "heaven", "haven"], t: ["หนัก", "(คำโบราณ)", "สวรรค์", "ที่หลบภัย"] },
+  { w: ["ready", "reedy", "reader", "riding"], t: ["พร้อม", "อุดมต้นอ้อ", "ผู้อ่าน", "ขี่ม้า"] },
+  { w: ["instead", "invest", "infest", "insist"], t: ["แทน", "ลงทุน", "ระบาด", "ยืนกราน"] },
+  { w: ["dead", "deed", "died", "diet"], t: ["ตาย", "การกระทำ", "เสียชีวิตแล้ว", "อาหารการกิน"] },
+  { w: ["death", "deft", "depth", "desk"], t: ["ความตาย", "คล่องแคล่ว", "ความลึก", "โต๊ะ"] },
+  { w: ["breadth", "breath", "breathe", "breeze"], t: ["ความกว้าง", "ลมหายใจ", "หายใจ", "สายลม"] },
+  { w: ["meadow", "window", "shadow", "hollow"], t: ["ทุ่งหญ้า", "หน้าต่าง", "เงา", "กลวง"] },
+  { w: ["sweat", "sweet", "sway", "swim"], t: ["เหงื่อ", "หวาน", "แกว่ง", "ว่ายน้ำ"] },
+  { w: ["treasure", "treasurer", "pressure", "pleasure"], t: ["สมบัติ", "เหรัญญิก", "ความกดดัน", "ความสุข"] },
+  { w: ["pleasure", "pressure", "measure", "treasure"], t: ["ความสุข", "ความกดดัน", "การวัด", "สมบัติ"] },
+  { w: ["measure", "mansion", "maid", "mention"], t: ["วัด", "คฤหาสน์", "สาวใช้", "กล่าวถึง"] },
+  { w: ["face", "faith", "fake", "fate"], t: ["ใบหน้า", "ศรัทธา", "ปลอม", "ชะตากรรม"] },
+  { w: ["pace", "page", "paid", "pain"], t: ["ก้าว", "หน้า", "จ่ายแล้ว", "ความเจ็บปวด"] },
+  { w: ["race", "rage", "raid", "raze"], t: ["แข่ง", "ความโกรธ", "บุกจู่โจม", "ถล่มทำลาย"] },
+  { w: ["lace", "late", "lake", "lame"], t: ["ลูกไม้ถัก", "สาย", "ทะเลสาบ", "พิการ"] },
+  { w: ["grape", "gripe", "grade", "graze"], t: ["องุ่น", "บ่น", "เกรด", "แทะเล็ม"] },
+  { w: ["tape", "type", "tab", "tap"], t: ["เทป", "พิมพ์", "แท็บ", "แตะ"] },
+  { w: ["cope", "cape", "cap", "cop"], t: ["รับมือ", "แหลม", "หมวก/ฝา", "ตำรวจ"] },
+  { w: ["hope", "hype", "hip", "hop"], t: ["หวัง", "โฆษณาเกินจริง", "สะโพก", "กระโดดขาเดียว"] },
+  { w: ["rope", "road", "rode", "rare"], t: ["เชือก", "ถนน", "ขี่แล้ว", "หายาก"] },
+  { w: ["soap", "soup", "sop", "soak"], t: ["สบู่", "ซุป", "จุ่ม", "แช่"] },
+  { w: ["listen", "lesson", "lessen", "lichen"], t: ["ฟัง", "บทเรียน", "ลดลง", "ไลเคน"] },
+  { w: ["reason", "raisin", "season", "resin"], t: ["เหตุผล", "ลูกเกด", "ฤดูกาล", "ยางไม้"] },
+  { w: ["person", "poison", "prison", "pardon"], t: ["บุคคล", "ยาพิษ", "คุก", "อภัยโทษ"] },
+  { w: ["common", "comma", "comet", "cannon"], t: ["ทั่วไป", "เครื่องหมายจุลภาค", "ดาวหาง", "ปืนใหญ่"] },
+  { w: ["company", "companion", "canyon", "campus"], t: ["บริษัท", "เพื่อนร่วมทาง", "หุบผา", "วิทยาเขต"] },
+  { w: ["compare", "compete", "comfort", "comrade"], t: ["เปรียบเทียบ", "แข่งขัน", "ปลอบใจ", "เพื่อนร่วมรบ"] },
+  { w: ["computer", "compete", "commute", "compute"], t: ["คอมพิวเตอร์", "แข่งขัน", "เดินทางไปทำงาน", "คำนวณ"] },
+  { w: ["coconut", "capstan", "copious", "cautious"], t: ["มะพร้าว", "กว้าน", "อุดมสมบูรณ์", "ระมัดระวัง"] },
+  { w: ["attack", "attach", "attract", "attempt"], t: ["โจมตี", "แนบ", "ดึงดูด", "พยายาม"] },
+  { w: ["against", "again", "aging", "agency"], t: ["ต่อต้าน", "อีกครั้ง", "แก่ตัว", "หน่วยงาน"] },
+  { w: ["agree", "aggrieved", "degree", "green"], t: ["เห็นด้วย", "น้อยเนื้อต่ำใจ", "ปริญญา", "สีเขียว"] },
+  { w: ["allow", "aloud", "along", "a lot"], t: ["อนุญาต", "เสียงดัง", "ตามยาว", "มากมาย"] },
+  { w: ["always", "all ways", "alley", "awry"], t: ["เสมอ", "ทุกทาง", "ซอย", "เบี้ยว"] },
+  { w: ["aside", "a side", "inside", "outside"], t: ["ด้านข้าง", "ด้านหนึ่ง", "ข้างใน", "ข้างนอก"] },
+  { w: ["assume", "consume", "resume", "perfume"], t: ["สมมติ", "บริโภค", "ประวัติย่อ", "น้ำหอม"] },
+  { w: ["account", "accent", "accord", "aunt"], t: ["บัญชี", "สำเนียง", "สอดคล้อง", "ป้า/อาผู้หญิง"] },
+  { w: ["accept", "except", "expect", "aspect"], t: ["ยอมรับ", "ยกเว้น", "คาดหวัง", "ลักษณะ"] },
+  { w: ["affect", "effect", "infect", "affair"], t: ["ส่งผล", "ผล", "ติดเชื้อ", "เรื่อง"] },
+  { w: ["apple", "apply", "applause", "ample"], t: ["แอปเปิล", "ใช้/สมัคร", "เสียงปรบมือ", "พอเพียง"] },
+  { w: ["arrow", "narrow", "marrow", "barrow"], t: ["ลูกศร", "แคบ", "ไขกระดูก", "เกวียนมือ"] },
+  { w: ["argue", "arc", "arch", "auction"], t: ["โต้เถียง", "ส่วนโค้ง", "ซุ้มประตู", "การประมูล"] },
+  { w: ["army", "armory", "alarm", "arm"], t: ["กองทัพ", "คลังอาวุธ", "ปลุก", "แขน"] },
+  { w: ["certainty", "certify", "surely", "surly"], t: ["ความแน่นอน", "รับรอง", "แน่ใจ", "ขี้หงุดหงิด"] },
+  { w: ["married", "mellow", "merry", "marry"], t: ["แต่งงานแล้ว", "นุ่มหวาน", "รื่นเริง", "แต่งงาน"] },
+  { w: ["carry", "curry", "cherry", "hurry"], t: ["ถือ/แบก", "แกงกะหรี่", "เชอร์รี", "รีบ"] },
+  { w: ["merry", "meringue", "memo", "memory"], t: ["รื่นเริง", "เมอแรงก์", "บันทึกช่วยจำ", "ความทรงจำ"] },
+  { w: ["very", "vary", "veil", "vale"], t: ["มาก", "ผันแปร", "ผ้าคลุมหน้า", "หุบเขา"] },
+  { w: ["terror", "temper", "timbre", "tender"], t: ["ความหวาดกลัว", "อารมณ์", "เสียงต่ำ", "อ่อน/อ่อนโยน"] },
+  { w: ["era", "error", "iron", "arrow"], t: ["ยุค", "ข้อผิดพลาด", "เหล็ก", "ลูกศร"] },
+  { w: ["A", "eh", "eight", "aye"], t: ["ตัวอักษรเอ", "เอ๊ะ", "แปด", "ใช่(aye)"] },
+  { w: ["B", "be", "bee", "bay"], t: ["ตัวอักษรบี", "เป็น", "ผึ้ง", "อ่าว"] },
+  { w: ["C", "see", "sea", "say"], t: ["ตัวอักษรซี", "เห็น", "ทะเล", "พูด"] },
+  { w: ["D", "dee", "deed", "day"], t: ["ตัวอักษรดี", "(เสียงดี)", "การกระทำ", "วัน"] },
+  { w: ["G", "gee", "gay", "guy"], t: ["ตัวอักษรจี", "(เสียง)", "เกย์", "ผู้ชาย"] },
+  { w: ["I", "eye", "aye", "hi"], t: ["ฉัน", "ตา", "ใช่", "สวัสดี"] },
+  { w: ["O", "oh", "owe", "own"], t: ["ตัวอักษรโอ", "โอ้", "เป็นหนี้", "เป็นเจ้าของ"] },
+  { w: ["P", "pea", "pee", "pay"], t: ["ตัวอักษรพี", "ถั่วลันเตา", "ฉี่", "จ่าย"] },
+  { w: ["Q", "cue", "queue", "quay"], t: ["ตัวอักษรคิว", "สัญญาณบอก", "คิว", "ท่าเทียบเรือ"] },
+  { w: ["R", "are", "our", "err"], t: ["ตัวอักษรอาร์", "เป็น", "ของเรา", "ทำพลาด"] },
+  { w: ["S", "ess", "essay", "essex"], t: ["ตัวอักษรเอส", "เสียงเอส", "เรียงความ", "เอสเซกซ์"] },
+  { w: ["T", "tea", "tee", "tie"], t: ["ตัวอักษรที", "ชา", "ที่วางลูกกอล์ฟ", "ผูก/เนกไท"] },
+  { w: ["U", "you", "ewe", "yew"], t: ["ตัวอักษรยู", "คุณ", "แกะตัวเมีย", "ต้นยู"] },
+  { w: ["V", "vee", "we", "visit"], t: ["ตัวอักษรวี", "(เสียง)", "เรา", "เยี่ยมชม"] },
+  { w: ["X", "ex", "axe", "ax"], t: ["ตัวอักษรเอกซ์", "อดีต", "ขวาน", "ขวาน(ย่อ)"] },
+  { w: ["Y", "why", "wye", "yacht"], t: ["ตัวอักษรไว", "ทำไม", "(รูปตัววาย)", "เรือยอชต์"] },
+  { w: ["believe", "belief", "belle", "belay"], t: ["เชื่อ", "ความเชื่อ", "หญิงงาม", "ผูกเชือก"] },
+  { w: ["relieve", "relief", "retreat", "receive"], t: ["บรรเทา", "การบรรเทา", "ถอย", "ได้รับ"] },
+  { w: ["achieve", "sleeve", "scheme", "sheep"], t: ["บรรลุ", "แขนเสื้อ", "แผนการ", "แกะ"] },
+  { w: ["piece", "peace", "peas", "pizza"], t: ["ชิ้น", "สันติภาพ", "ถั่วลันเตา", "พิซซ่า"] },
+  { w: ["field", "shield", "yield", "shelf"], t: ["ทุ่ง", "โล่", "ให้ผลผลิต", "ชั้นวาง"] },
+  { w: ["chief", "chef", "cheek", "sheep"], t: ["หัวหน้า", "เชฟ", "แก้ม", "แกะ"] },
+  { w: ["diesel", "drizzle", "dizzy", "pizza"], t: ["ดีเซล", "ฝนตกปรอย", "เวียนหัว", "พิซซ่า"] },
+  { w: ["ancient", "amendment", "advance", "assent"], t: ["โบราณ", "การแก้ไข", "ก้าวหน้า", "การยินยอม"] },
+  { w: ["burglar", "burgher", "builder", "bully"], t: ["ขโมย", "ชาวเมือง", "ช่างก่อสร้าง", "พาล"] },
+  { w: ["cat", "cut", "coat", "cot"], t: ["แมว", "ตัด", "เสื้อโค้ท", "เตียงพับ"] },
+  { w: ["cab", "cap", "cop", "cube"], t: ["แท็กซี่/ห้องโดยสาร", "หมวก/ฝา", "ตำรวจ", "ลูกบาศก์"] },
+  { w: ["bat", "bet", "bit", "but"], t: ["ค้างคาว/ไม้ตี", "เดิมพัน", "บิต", "แต่"] },
+  { w: ["fat", "fit", "feet", "fade"], t: ["อ้วน", "พอดี", "เท้า", "จาง/เลือน"] },
+  { w: ["hat", "hit", "heat", "hurt"], t: ["หมวก", "ตี", "ความร้อน", "เจ็บ"] },
+  { w: ["mat", "met", "mit", "mud"], t: ["เสื่อ", "พบแล้ว", "(คำย่อ)", "โคลน"] },
+  { w: ["rat", "root", "route", "rye"], t: ["หนู", "ราก/เชียร์", "เส้นทาง", "ข้าวไรย์"] },
+  { w: ["pat", "pet", "pit", "pot"], t: ["ลูบ", "สัตว์เลี้ยง", "หลุม", "หม้อ"] },
+  { w: ["sat", "set", "site", "sight"], t: ["นั่งแล้ว", "ตั้งค่า", "เว็บไซต์", "การมองเห็น"] },
+  { w: ["bad", "bed", "bud", "bird"], t: ["ไม่ดี", "เตียง", "ตาดอก", "นก"] },
+  { w: ["mad", "made", "mud", "mead"], t: ["บ้า", "ทำแล้ว", "โคลน", "ทุ่งหญ้า(เก่า)"] },
+  { w: ["dad", "dead", "died", "dare"], t: ["พ่อ", "ตาย", "เสียชีวิตแล้ว", "กล้า"] },
+  { w: ["fad", "feed", "food", "fade"], t: ["แฟชั่นเพื่อ", "ให้อาหาร", "อาหาร", "จาง/เลือน"] },
+  { w: ["sad", "said", "seed", "sod"], t: ["เศร้า", "กล่าว", "เมล็ด", "สนามหญ้า"] },
+  { w: ["god", "good", "gold", "goat"], t: ["พระเจ้า", "ดี", "ทองคำ", "แพะ"] },
+  { w: ["glad", "glide", "grade", "grid"], t: ["ดีใจ", "ร่อน", "เกรด", "ตาราง"] },
+  { w: ["grab", "grub", "grip", "grape"], t: ["คว้า", "ตัวอ่อน", "จับ", "องุ่น"] },
+  { w: ["flag", "flog", "flick", "flock"], t: ["ธง", "เฆี่ยน", "สะบัด", "ฝูง"] },
+  { w: ["clap", "clip", "clamp", "clump"], t: ["ปรบมือ", "หนีบ", "ยึด", "กลุ่ม"] },
+  { w: ["slap", "sleep", "slip", "slope"], t: ["ตบ", "หลับ", "ลื่น", "ลาดเอียง"] },
+  { w: ["snap", "snip", "snob", "snoop"], t: ["งับ", "กรรไกรตัดเล็ก", "คนถือตัว", "แอบสอดแนม"] },
+  { w: ["strip", "strap", "straw", "strike"], t: ["แถบ", "สายรัด", "ฟาง", "นัดหยุดงาน"] },
+  { w: ["trap", "trip", "troop", "tub"], t: ["กับดัก", "เดินทาง", "กองทหาร", "อ่าง"] },
+  { w: ["lab", "lip", "lap", "loop"], t: ["ห้องแล็บ", "ริมฝีปาก", "ตัก", "ห่วง"] },
+  { w: ["map", "mop", "mope", "maple"], t: ["แผนที่", "ไม้ถูพื้น", "ห่อเหี่ยว", "ต้นเมเปิล"] },
+  { w: ["nap", "nip", "napkin", "knotty"], t: ["งีบหลับ", "หยิก", "ผ้าเช็ดปาก", "ปมยุ่ง"] },
+  { w: ["rag", "rug", "rig", "right"], t: ["ผ้าขี้ริ้ว", "พรม", "แท่นขุดเจาะ", "ถูกต้อง"] },
+  { w: ["hag", "hug", "hawk", "hog"], t: ["แม่มดแก่", "กอด", "เหยี่ยว", "หมู"] },
+  { w: ["tag", "tug", "toke", "talk"], t: ["ป้าย", "ดึง", "สูบ(กัญชา)", "พูดคุย"] },
+  { w: ["lag", "leg", "log", "lug"], t: ["ล้าหลัง", "ขา", "ท่อนซุง", "ลาก"] },
+  { w: ["sag", "sog", "sock", "suck"], t: ["ตกต่ำ", "แฉะ", "ถุงเท้า", "ดูด"] },
+  { w: ["wag", "wig", "woke", "work"], t: ["กระดิก", "วิกผม", "ตื่นแล้ว", "ทำงาน"] },
+  { w: ["kid", "keyed", "code", "cod"], t: ["เด็ก", "มีกุญแจ", "รหัส", "ปลาค็อด"] },
+  { w: ["lid", "lied", "lead", "let"], t: ["ฝา", "โกหกแล้ว", "นำ/ตะกั่ว", "ให้"] },
+  { w: ["rid", "red", "rod", "rude"], t: ["ขจัด", "สีแดง", "ไม้เรียว", "หยาบคาย"] },
+  { w: ["hid", "hood", "hod", "had"], t: ["ซ่อนแล้ว", "กระโปรง/ฝา", "รางปูน", "มี"] },
+  { w: ["grid", "greet", "greed", "great"], t: ["ตาราง", "ทักทาย", "ความโลภ", "ยิ่งใหญ่"] },
+  { w: ["pride", "pried", "price", "prize"], t: ["ความภาคภูมิใจ", "แงะ", "ราคา", "รางวัล"] },
+  { w: ["slide", "slid", "sleet", "slight"], t: ["สไลด์", "เลื่อน", "ฝนเยือก", "เล็กน้อย"] },
+  { w: ["ride", "raid", "wired", "wide"], t: ["ขี่", "บุกจู่โจม", "เชื่อมสาย", "กว้าง"] },
+  { w: ["hide", "hayed", "high", "height"], t: ["ซ่อน", "(เสียงเฮย์)", "สูง", "ความสูง"] },
+  { w: ["tide", "tied", "tired", "tight"], t: ["น้ำขึ้นน้ำลง", "ผูกแล้ว", "เหนื่อย", "แน่น"] },
+  { w: ["side", "sighed", "sight", "site"], t: ["ด้านข้าง", "ถอนหายใจ", "การมองเห็น", "เว็บไซต์"] },
+  { w: ["bride", "bright", "brief", "bribe"], t: ["เจ้าสาว", "สว่าง", "สั้น/โดยย่อ", "สินบน"] },
+  { w: ["guide", "guyed", "grade", "gourd"], t: ["ไกด์", "(ผูกด้วยเชือก)", "เกรด", "น้ำเต้า"] },
+  { w: ["wide", "white", "wined", "wound"], t: ["กว้าง", "สีขาว", "ดื่มไวน์", "แผล/ขดลวด"] },
+  { w: ["hope", "hoop", "heap", "hip"], t: ["หวัง", "ห่วง", "กอง", "สะโพก"] },
+  { w: ["coast", "cost", "toast", "ghost"], t: ["ชายฝั่ง", "ต้นทุน", "ขนมปังปิ้ง", "ผี"] },
+  { w: ["load", "loud", "loam", "loan"], t: ["บรรทุก", "ดัง", "ดินร่วน", "เงินกู้"] },
+  { w: ["road", "rode", "rowed", "roar"], t: ["ถนน", "ขี่แล้ว", "พายแล้ว", "คำราม"] },
+  { w: ["boat", "bode", "bold", "bolted"], t: ["เรือ", "ลางบอกเหตุ", "กล้า", "ลั่นแล้ว"] },
+  { w: ["coat", "code", "cold", "coal"], t: ["เสื้อโค้ท", "รหัส", "หนาว(คำใช้รวม)", "ถ่านหิน"] },
+  { w: ["goat", "goad", "goal", "go"], t: ["แพะ", "แทงด้วยไม้ง่าม", "เป้าหมาย", "ไป"] },
+  { w: ["throat", "throw", "throes", "three"], t: ["คอ", "โยน", "ความเจ็บปวด", "สาม"] },
+  { w: ["sew", "sow", "so", "zone"], t: ["เย็บผ้า", "หว่าน", "ดังนั้น", "เขต"] },
+  { w: ["grow", "go", "ow", "grew"], t: ["เติบโต", "ไป", "โอ๊ย", "เติบโตแล้ว"] },
+  { w: ["blow", "blue", "blew", "brood"], t: ["เป่า", "สีน้ำเงิน", "เป่าแล้ว", "กกไข่/ครุ่นคิด"] },
+  { w: ["low", "law", "lure", "loor"], t: ["ต่ำ", "กฎหมาย", "ล่อ", "(คำโบราณ)"] },
+  { w: ["slow", "sloe", "sleigh", "slaw"], t: ["ช้า", "ผลสโล", "เลื่อนหิมะ", "สลัดกะหล่ำ"] },
+  { w: ["own", "owe", "owl", "old"], t: ["เป็นเจ้าของ", "เป็นหนี้", "นกฮูก", "แก่"] },
+  { w: ["bone", "born", "burn", "bean"], t: ["กระดูก", "เกิด", "เผา", "ถั่ว"] },
+  { w: ["phone", "foam", "fan", "phon"], t: ["โทรศัพท์", "โฟม", "พัดลม", "(คำย่อ)"] },
+  { w: ["stone", "stove", "stain", "star"], t: ["หิน", "เตา", "รอยเปื้อน", "ดาว"] },
+  { w: ["alone", "along", "a loan", "allot"], t: ["ตามลำพัง", "ตามยาว", "เงินกู้หนึ่ง", "จัดสรร"] },
+  { w: ["tone", "ton", "toe", "town"], t: ["โทนเสียง", "ตัน", "นิ้วเท้า", "เมือง"] },
+  { w: ["zone", "zones", "zoons", "own"], t: ["เขต", "เขต(พหูพจน์)", "(คำย่อ)", "เป็นเจ้าของ"] },
+  { w: ["thing", "think", "thick", "thief"], t: ["สิ่งของ", "คิด", "หนา", "ขโมย"] },
+  { w: ["king", "keen", "kin", "knee"], t: ["กษัตริย์", "กระตือรือร้น", "ญาติ", "เข่า"] },
+  { w: ["wing", "win", "wink", "while"], t: ["ปีก", "ชนะ", "ขยิบตา", "ระหว่างที่"] },
+  { w: ["ring", "wring", "rung", "wrong"], t: ["แหวน", "บิดหมาด", "ขั้นบันได", "ผิด"] },
+  { w: ["sing", "song", "sung", "sang"], t: ["ร้องเพลง", "เพลง", "ร้องแล้ว", "ร้องแล้ว(ซ้ำ)"] },
+  { w: ["bring", "brag", "broke", "brook"], t: ["นำมา", "อวด", "เสียแล้ว", "ลำธาร"] },
+  { w: ["spring", "sprang", "sprong", "sprig"], t: ["ฤดูใบไม้ผลิ", "กระโดดแล้ว", "(ประวัติ)", "กิ่งไม้"] },
+  { w: ["sting", "sthang", "stung", "string"], t: ["ต่อย", "(สำเนียง)", "ต่อยแล้ว", "เชือก"] },
+  { w: ["swing", "swуг", "swan", "swum"], t: ["แกว่ง", "(คำโบราณ)", "หงส์", "ว่ายแล้ว"] },
+  { w: ["hang", "hung", "hinge", "ring"], t: ["แขวน", "ห้อยแล้ว", "บานพับ", "แหวน"] },
+  { w: ["bang", "bung", "bong", "bank"], t: ["ปัง", "จุก", "เชิงกราน", "ธนาคาร"] },
+  { w: ["rang", "rung", "wrong", "wring"], t: ["ดังแล้ว", "ขั้นบันได", "ผิด", "บิดหมาด"] },
+  { w: ["sang", "sung", "song", "sign"], t: ["ร้องแล้ว", "ร้องแล้ว(ซ้ำ)", "เพลง", "ป้าย"] },
+  { w: ["thong", "thing", "tongue", "tong"], t: ["สายรัด", "สิ่งของ", "ลิ้น", "คีม"] },
+  { w: ["long", "lung", "lounge", "log"], t: ["ยาว", "ปอด", "ห้องนั่งเล่น", "ท่อนซุง"] },
+  { w: ["strong", "stream", "string", "strung"], t: ["แข็งแรง", "ลำธาร", "เชือก", "ร้อยแล้ว"] },
+  { w: ["bland", "blind", "blend", "brand"], t: ["จืดชืด", "ตาบอด", "ผสม", "ยี่ห้อ"] },
+  { w: ["sand", "send", "sound", "sinned"], t: ["ทราย", "ส่ง", "เสียง", "ทำบาปแล้ว"] },
+  { w: ["band", "bend", "bond", "bound"], t: ["วงดนตรี", "งอ", "พันธะ", "ผูกพัน"] },
+  { w: ["hand", "hen", "hind", "hint"], t: ["มือ", "แม่ไก่", "กวางตัวเมีย", "คำใบ้"] },
+  { w: ["land", "lend", "lint", "lawn"], t: ["แผ่นดิน", "ให้ยืม", "ขุยผ้า", "สนามหญ้า"] },
+  { w: ["stand", "stint", "stunt", "stair"], t: ["ยืน", "จำกัด", "เล่นผาดโผน", "บันได"] },
+  { w: ["grand", "grant", "grate", "grind"], t: ["ยิ่งใหญ่", "อนุญาต", "ขูด", "บด"] },
+  { w: ["plans", "plants", "planes", "plains"], t: ["แผน(พหูพจน์)", "ต้นไม้", "เครื่องบิน", "ที่ราบ"] },
+  { w: ["trips", "traps", "trap", "drips"], t: ["การเดินทาง", "กับดัก", "กับดัก(ซ้ำ)", "หยด"] },
+  { w: ["songs", "sungs", "lungs", "longs"], t: ["เพลง(พหูพจน์)", "(คำโบราณ)", "ปอด", "โหยหา"] },
+  { w: ["hunt", "hurt", "hard", "heart"], t: ["ล่าสัตว์", "เจ็บ", "แข็ง", "หัวใจ"] },
+  { w: ["front", "fond", "found", "faint"], t: ["ด้านหน้า", "ชื่นชอบ", "พบ", "เป็นลม"] },
+  { w: ["point", "paint", "print", "pont"], t: ["จุด", "ทาสี", "พิมพ์", "(คำย่อ)"] },
+  { w: ["joint", "joined", "jolt", "jump"], t: ["ข้อต่อ", "เข้าร่วมแล้ว", "สะเทือน", "กระโดด"] },
+  { w: ["adjoin", "adjourn", "judge", "join"], t: ["ติดกัน", "พักการประชุม", "ผู้พิพากษา", "เข้าร่วม"] },
+  { w: ["around", "arouse", "arise", "arose"], t: ["รอบ", "ปลุกเร้า", "ลุกขึ้น", "ลุกขึ้นแล้ว"] },
+  { w: ["court", "quart", "cart", "carrot"], t: ["ศาล", "ควอร์ต", "รถเข็น", "แคร์รอต"] },
+  { w: ["fort", "fourth", "forth", "forte"], t: ["ป้อม", "ที่สี่", "ไปข้างหน้า", "จุดแข็ง"] },
+  { w: ["port", "part", "parrot", "pat"], t: ["ท่าเรือ", "ส่วน", "นกแก้ว", "ลูบ"] },
+  { w: ["sport", "spore", "spare", "spire"], t: ["กีฬา", "สปอร์", "สำรอง", "ยอดแหลม"] },
+  { w: ["short", "shoot", "shirt", "shout"], t: ["สั้น", "ยิง", "เสื้อเชิ้ต", "ตะโกน"] },
+  { w: ["report", "repart", "depart", "impart"], t: ["รายงาน", "การตอบโต้", "ออกเดินทาง", "ถ่ายทอด"] },
+  { w: ["support", "soprano", "supper", "suffer"], t: ["สนับสนุน", "เสียงโซปราโน", "มื้อค่ำ", "ทนทุกข์"] },
+  { w: ["import", "impart", "embark", "amply"], t: ["นำเข้า", "ถ่ายทอด", "ขึ้นเรือ", "อย่างเพียงพอ"] },
+  { w: ["sorrel", "sorrow", "sash", "shore"], t: ["พืชสีน้ำตาล", "ความเศร้าใจ", "สายสะพาย", "ชายฝั่ง"] },
+  { w: ["sorry", "sari", "sour", "sparrow"], t: ["ขอโทษ", "ส่าหรี", "เปรี้ยว", "นกกระจอก"] },
+  { w: ["hurry", "curry", "cherry", "quarry"], t: ["รีบเร่ง", "แกงกะหรี่", "เชอร์รี", "เหมืองหิน"] },
+  { w: ["trolley", "stroll", "trawl", "trust"], t: ["รถเข็น", "เดินเล่น", "อวนลาก", "เชื่อใจ"] },
+  { w: ["loyalty", "royalty", "roil", "loyal"], t: ["ความภักดี", "ราชวงศ์", "กวน", "ภักดี"] },
+  { w: ["voyage", "vomit", "volume", "vogue"], t: ["การเดินทาง", "อาเจียน", "ปริมาตร", "แฟชั่นนิยม"] },
+  { w: ["fire", "fired", "far", "fur"], t: ["ไฟ", "ไล่ออก", "ไกล", "ขนสัตว์"] },
+  { w: ["hire", "higher", "hair", "heir"], t: ["จ้าง", "สูงกว่า", "ผม", "ทายาท"] },
+  { w: ["tire", "tired", "tar", "tear"], t: ["ยางรถ", "เหนื่อย", "น้ำมันดิน", "น้ำตา"] },
+  { w: ["mire", "mired", "mare", "mere"], t: ["โคลนตม", "ติดหล่ม", "ม้าตัวเมีย", "เพียง"] },
+  { w: ["wire", "wired", "were", "we're"], t: ["ลวด", "เชื่อมสาย", "เป็น", "เราคือ"] },
+  { w: ["spire", "spiral", "spark", "spare"], t: ["ยอดแหลม", "เกลียว", "ประกาย", "สำรอง"] },
+  { w: ["desire", "dessert", "desert", "design"], t: ["ความปรารถนา", "ของหวาน", "ทะเลทราย", "การออกแบบ"] },
+  { w: ["entire", "entirely", "intire", "aim"], t: ["ทั้งหมด", "โดยสิ้นเชิง", "(คำโบราณ)", "เล็ง"] },
+  { w: ["squire", "square", "squeeze", "scheme"], t: ["ขุนนางท้องถิ่น", "สี่เหลี่ยม", "บีบ", "แผนการ"] },
+  { w: ["damn", "dam", "dove", "dumb"], t: ["สาปแช่ง", "เขื่อน", "นกพิราบ", "ใบ้"] },
+  { w: ["com", "comb", "come", "coam"], t: ["(คำย่อ)", "หวี", "มา", "(ปล่อง)"] },
+  { w: ["tomb", "tome", "room", "toom"], t: ["หลุมฝังศพ", "หนังสือเล่มใหญ่", "ห้อง", "(คำโบราณ)"] },
+  { w: ["bomb", "bum", "balm", "palm"], t: ["ระเบิด", "คนจรจัด", "ยาหม่อง", "ฝ่ามือ"] },
+  { w: ["limb", "lime", "line", "lame"], t: ["แขนขา", "ปูนขาว", "เส้น", "พิการ"] },
+  { w: ["climb", "clam", "clime", "claim"], t: ["ปีน", "หอยแครง", "ภูมิอากาศ", "อ้างสิทธิ์"] },
+  { w: ["lamb", "lam", "lamp", "lance"], t: ["ลูกแกะ", "หนี", "โคมไฟ", "หอก"] },
+  { w: ["crumb", "crump", "crumble", "crew"], t: ["เศษขนมปัง", "(คำย่อ)", "แตกสลาย", "ลูกเรือ"] },
+  { w: ["numb", "gnome", "name", "lame"], t: ["ชา", "คำพังเพย", "ชื่อ", "พิการ"] },
+  { w: ["dumber", "drone", "doom", "dome"], t: ["โง่กว่า", "โดรน", "จุดจบ", "โดม"] },
+  { w: ["sign", "sine", "seen", "sigh"], t: ["ป้าย", "ไซน์", "เห็นแล้ว", "ถอนหายใจ"] },
+  { w: ["campaign", "campiagn", "companion", "camp"], t: ["แคมเปญ", "(คำโบราณ)", "เพื่อน", "ค่าย"] },
+  { w: ["foreign", "farren", "forest", "fore"], t: ["ต่างประเทศ", "(คำโบราณ)", "ป่า", "ด้านหน้า"] },
+  { w: ["sovereign", "sovran", "saving", "savant"], t: ["ผู้ปกครอง", "(คำโบราณ)", "การออม", "ปราชญ์"] },
+  { w: ["resign", "design", "assign", "sign"], t: ["ลาออก", "ออกแบบ", "มอบหมาย", "ป้าย"] },
+  { w: ["benign", "be mine", "begin", "robin"], t: ["ใจดี", "ของฉัน", "เริ่มต้น", "นกโรบิน"] },
+  { w: ["align", "a line", "alloy", "a lien"], t: ["จัดแนว", "หนึ่งเส้น", "โลหะผสม", "สิทธิยึดทรัพย์"] },
+  { w: ["veil", "vale", "wail", "well"], t: ["ผ้าคลุมหน้า", "หุบเขา", "ร่ำไห้", "ดี/บ่อน้ำ"] },
+  { w: ["feign", "fain", "fine", "fan"], t: ["แสร้ง", "ยินดี", "ดี", "พัดลม"] },
+  { w: ["reign", "rain", "rein", "wren"], t: ["ครองราชย์", "ฝน", "บังเหียน", "นกเรน"] },
+  { w: ["sovereignty", "surgery", "sorcery", "summer"], t: ["อธิปไตย", "ศัลยกรรม", "เวทมนตร์", "ฤดูร้อน"] },
+  { w: ["fasten", "fashion", "faction", "faint"], t: ["ผูกให้แน่น", "แฟชั่น", "กลุ่มย่อย", "เป็นลม"] },
+  { w: ["listen", "lesson", "lessen", "lysine"], t: ["ฟัง", "บทเรียน", "ลดลง", "ไลซีน"] },
+  { w: ["glisten", "glass", "gloss", "glossy"], t: ["เป็นประกาย", "แก้ว", "ความเงางาม", "มันวาว"] },
+  { w: ["moisten", "moist", "muslin", "muster"], t: ["ทำให้ชื้น", "ชื้น", "ผ้ามัสลิน", "รวบรวมพล"] },
+  { w: ["castle", "cassel", "cattle", "cast"], t: ["ปราสาท", "(คำโบราณ)", "วัวควาย", "เหวี่ยง"] },
+  { w: ["hustle", "hassle", "hazel", "handle"], t: ["ขยันทำ", "ยุ่งยาก", "สีน้ำตาลแดง", "จับ"] },
+  { w: ["whistle", "wistful", "wrestle", "wrinkle"], t: ["ผิวปาก", "โหยหา", "ปล้ำ", "ริ้วรอย"] },
+  { w: ["thistle", "this'll", "sample", "simple"], t: ["ต้นหนาม", "สิ่งนี้จะ", "ตัวอย่าง", "ง่าย"] },
+  { w: ["bustle", "bottle", "buckle", "basel"], t: ["คึกคัก", "ขวด", "หัวเข็มขัด", "(เมือง)"] },
+  { w: ["nestle", "nuzzle", "vascular", "nasal"], t: ["ซุก", "ถูจมูก", "หลอดเลือด", "จมูก"] },
+  { w: ["mortgage", "mortgager", "mosaic", "master"], t: ["จำนอง", "(ผู้ให้จำนอง)", "โมเสก", "เจ้านาย"] },
+  { w: ["knife", "knee", "night", "knock"], t: ["มีด", "เข่า", "กลางคืน", "เคาะ"] },
+  { w: ["knee", "new", "gnu", "few"], t: ["เข่า", "ใหม่", "วิลเดอบีสต์", "สองสาม"] },
+  { w: ["knock", "knack", "knapsack", "knowledge"], t: ["เคาะ", "ความชำนาญ", "กระเป๋าเป้", "ความรู้"] },
+  { w: ["knot", "not", "naught", "knit"], t: ["ปม", "ไม่", "ศูนย์/เปล่า", "ถัก"] },
+  { w: ["knight", "night", "nit", "nigh"], t: ["อัศวิน", "กลางคืน", "ไข่เหา", "ใกล้"] },
+  { w: ["knob", "nob", "nab", "nabs"], t: ["ลูกบิด", "ขุนนาง", "ฉก", "ฉก(พหูพจน์)"] },
+  { w: ["knell", "nail", "null", "snail"], t: ["เสียงระฆัง", "เล็บ", "เป็นโมฆะ", "หอยทาก"] },
+  { w: ["gnash", "nash", "mash", "gnat"], t: ["ขบเขี้ยว", "(ชื่อ)", "บด", "ริ้น"] },
+  { w: ["gnaw", "no", "know", "nod"], t: ["แทะ", "ไม่", "รู้", "พยักหน้า"] },
+  { w: ["gnat", "nat", "nation", "nay"], t: ["ริ้น", "(ชื่อ)", "ชาติ", "ไม่"] },
+  { w: ["gnome", "nome", "know", "numb"], t: ["คำพังเพย", "(คำย่อ)", "รู้", "ชา"] },
+  { w: ["write", "right", "writ", "wright"], t: ["เขียน", "ถูกต้อง", "หมายศาล", "ช่างทำ(ต่อท้าย)"] },
+  { w: ["wreck", "rack", "rake", "wrist"], t: ["ซากเรือ", "ชั้นวาง", "คราด", "ข้อมือ"] },
+  { w: ["wrist", "rest", "risk", "wrest"], t: ["ข้อมือ", "พัก", "เสี่ยง", "ปล้ำ"] },
+  { w: ["wraith", "wrath", "date", "death"], t: ["วิญญาณ", "ความโกรธ", "วันที่", "ความตาย"] },
+  { w: ["wrap", "rap", "ramp", "warp"], t: ["ห่อ", "ตีจังหวะ", "ทางลาด", "บิดเบี้ยว"] },
+  { w: ["wrinkle", "knuckle", "tackle", "twinkle"], t: ["ริ้วรอย", "ข้อนิ้ว", "อุปกรณ์", "ระยิบระยับ"] },
+  { w: ["wrong", "wring", "ring", "rung"], t: ["ผิด", "บิดหมาด", "แหวน", "ขั้นบันได"] },
+  { w: ["write", "weight", "wait", "wade"], t: ["เขียน", "น้ำหนัก", "รอ", "ลุยน้ำ"] },
+  { w: ["aware", "unaware", "awhile", "awry"], t: ["ตระหนัก", "ไม่ทันรู้ตัว", "ชั่วครู่", "เบี้ยว"] },
+  { w: ["sword", "sawed", "soared", "sord"], t: ["ดาบ", "เลื่อยแล้ว", "โผบินแล้ว", "(คำโบราณ)"] },
+  { w: ["answer", "antler", "angler", "anser"], t: ["คำตอบ", "เขากวาง", "คนตกปลา", "(จำพวกห่าน)"] },
+  { w: ["honest", "honey", "honor", "onus"], t: ["ซื่อสัตย์", "น้ำผึ้ง", "เกียรติ", "ภาระ"] },
+  { w: ["honor", "hour", "heron", "harbor"], t: ["เกียรติ", "ชั่วโมง", "นกกระสา", "ท่าเรือ"] },
+  { w: ["heir", "air", "ere", "err"], t: ["ทายาท", "อากาศ", "ก่อน(โบราณ)", "ทำพลาด"] },
+  { w: ["hour", "our", "far", "for"], t: ["ชั่วโมง", "ของเรา", "ไกล", "สำหรับ"] },
+  { w: ["ghast", "ghost", "ghess", "gust"], t: ["(คำโบราณ)", "ผี", "(คำโบราณ)", "ลมกระโชก"] },
+  { w: ["ghastly", "ghostly", "tightly", "hastily"], t: ["น่าสยดสยอง", "เชิงผี", "แน่น", "อย่างรีบร้อน"] },
+  { w: ["rhyme", "rime", "ring", "rind"], t: ["สัมผัสคล้องจอง", "น้ำค้างแข็ง", "แหวน", "เปลือก"] },
+  { w: ["rhythm", "rhyme", "reason", "rent"], t: ["จังหวะ", "สัมผัสคล้องจอง", "เหตุผล", "ค่าเช่า"] },
+  { w: ["rhubarb", "barb", "burb", "barber"], t: ["ผักรูบาร์บ", "หนาม", "ชานเมือง", "ช่างตัดผม"] },
+  { w: ["rhetoric", "rhetorical", "hector", "doctor"], t: ["วาทศิลป์", "เชิงวาทศิลป์", "ข่มขู่", "หมอ"] },
+  { w: ["rhino", "rino", "rainbow", "rind"], t: ["แรด", "(คำย่อ)", "สายรุ้ง", "เปลือก"] },
+  { w: ["blackguard", "backyard", "black", "brag"], t: ["คนพาล", "สนามหลังบ้าน", "สีดำ", "อวด"] },
+  { w: ["handkerchief", "hand", "candle", "cannot"], t: ["ผ้าเช็ดหน้า", "มือ", "เทียน", "ไม่สามารถ"] },
+  { w: ["Wednesday", "when", "wend", "wedded"], t: ["วันพุธ", "เมื่อไร", "เดินทาง", "แต่งงานแล้ว"] },
+  { w: ["rhythm", "rhythmic", "arthritis", "arithmetic"], t: ["จังหวะ", "มีจังหวะ", "โรคข้ออักเสบ", "เลขคณิต"] },
+  { w: ["queue", "cue", "kew", "quay"], t: ["คิว", "สัญญาณบอก", "(สวนคิว)", "ท่าเทียบเรือ"] },
+  { w: ["quiet", "quite", "quit", "quote"], t: ["เงียบ", "ค่อนข้าง", "เลิก", "อ้างอิง"] },
+  { w: ["quite", "quiet", "quilt", "quill"], t: ["ค่อนข้าง", "เงียบ", "ผ้านวม", "ขนนก"] },
+  { w: ["quote", "quota", "coat", "cote"], t: ["อ้างอิง", "โควตา", "เสื้อโค้ท", "คอก"] },
+  { w: ["quarter", "quart", "court", "cart"], t: ["ไตรมาส", "ควอร์ต", "ศาล", "รถเข็น"] },
+  { w: ["square", "squirm", "swirl", "sward"], t: ["สี่เหลี่ยม", "ดิ้น", "วนเวียน", "สนามหญ้า"] },
+  { w: ["squeeze", "sneeze", "freeze", "frieze"], t: ["บีบ", "จาม", "แช่แข็ง", "แถบปูน"] },
+  { w: ["equal", "eagle", "eager", "eject"], t: ["เท่าเทียม", "นกอินทรี", "กระตือรือร้น", "ดีดออก"] },
+  { w: ["equator", "equestrian", "echo", "equip"], t: ["เส้นศูนย์สูตร", "ขี่ม้า", "เสียงสะท้อน", "ติดตั้ง"] },
+  { w: ["questionnaire", "question", "quickness", "concussion"], t: ["แบบสอบถาม", "คำถาม", "ความรวดเร็ว", "การกระทบกระเทือน"] },
+  { w: ["acquire", "inquire", "require", "square"], t: ["ได้มา", "สอบถาม", "ต้องการ", "สี่เหลี่ยม"] },
+  { w: ["accuse", "excuse", "exclude", "include"], t: ["กล่าวหา", "ขอโทษ", "แยกออก", "รวม"] },
+  { w: ["accident", "incident", "ancient", "silent"], t: ["อุบัติเหตุ", "เหตุการณ์", "โบราณ", "เงียบ"] },
+  { w: ["occasion", "cushion", "crashes", "commission"], t: ["โอกาส", "เบาะรอง", "การชน", "คณะกรรมการ"] },
+  { w: ["possession", "procession", "profession", "position"], t: ["การครอบครอง", "ขบวน", "อาชีพ", "ตำแหน่ง"] },
+  { w: ["success", "succeeds", "seagulls", "sockets"], t: ["ความสำเร็จ", "ประสบความสำเร็จ", "นกนางนวล", "เต้ารับ"] },
+  { w: ["excess", "access", "axis", "ice"], t: ["ส่วนเกิน", "เข้าถึง", "แกน", "น้ำแข็ง"] },
+  { w: ["oppression", "opposition", "application", "obligation"], t: ["การกดขี่", "ฝ่ายค้าน", "ใบสมัคร", "ภาระผูกพัน"] },
+  { w: ["across", "accost", "arose", "a rose"], t: ["ข้าม", "พูดเข้าหา", "ลุกขึ้นแล้ว", "กุหลาบหนึ่ง"] },
+  { w: ["question", "motion", "nation", "notion"], t: ["คำถาม", "การเคลื่อนไหว", "ชาติ", "ความคิด"] },
+  { w: ["action", "auction", "section", "station"], t: ["การกระทำ", "การประมูล", "ส่วน", "สถานี"] },
+  { w: ["information", "confirmation", "transformation", "transportation"], t: ["ข้อมูล", "การยืนยัน", "การเปลี่ยนแปลง", "การคมนาคม"] },
+  { w: ["operation", "cooperation", "expectation", "occupation"], t: ["การผ่าตัด/ดำเนินการ", "ความร่วมมือ", "ความคาดหวัง", "อาชีพ"] },
+  { w: ["education", "edition", "erosion", "addition"], t: ["การศึกษา", "ฉบับ", "การกัดเซาะ", "การบวก"] },
+  { w: ["creation", "crystal", "crucial", "crustacean"], t: ["การสร้าง", "คริสตัล", "สำคัญมาก", "สัตว์ครัสเตเชียน"] },
+  { w: ["celebration", "reverberation", "liberation", "exaggeration"], t: ["การเฉลิมฉลอง", "เสียงก้อง", "การปลดปล่อย", "การพูดเกินจริง"] },
+  { w: ["communication", "municipality", "mummification", "magnetization"], t: ["การสื่อสาร", "เทศบาล", "การทำมัมมี่", "การทำให้เป็นแม่เหล็ก"] },
+  { w: ["conservation", "conversation", "concentration", "consideration"], t: ["การอนุรักษ์", "การสนทนา", "สมาธิ", "การพิจารณา"] },
+  { w: ["conclusion", "collusion", "inclusion", "exclusion"], t: ["ข้อสรุป", "สมคบคิด", "การรวม", "การยกเว้น"] },
+  { w: ["decision", "division", "decisions", "precision"], t: ["การตัดสินใจ", "การแบ่ง", "การตัดสินใจ(พหูพจน์)", "ความแม่นยำ"] },
+  { w: ["treason", "reason", "season", "raising"], t: ["กบฏ", "เหตุผล", "ฤดูกาล", "การเลี้ยงดู"] },
+  { w: ["vision", "version", "session", "mission"], t: ["วิสัยทัศน์", "เวอร์ชัน", "ช่วงเวลา", "ภารกิจ"] },
+  { w: ["mansion", "expansion", "mention", "mission"], t: ["คฤหาสน์", "การขยายตัว", "กล่าวถึง", "ภารกิจ"] },
+  { w: ["nation", "national", "rational", "natal"], t: ["ชาติ", "ระดับชาติ", "มีเหตุผล", "เกี่ยวกับการเกิด"] },
+  { w: ["station", "transition", "tradition", "position"], t: ["สถานี", "การเปลี่ยนผ่าน", "ประเพณี", "ตำแหน่ง"] },
+  { w: ["international", "interpersonal", "interpret", "intercept"], t: ["ระหว่างประเทศ", "ระหว่างบุคคล", "ตีความ", "สกัดกั้น"] },
+  { w: ["ban", "barn", "burn", "born"], t: ["แบน/ห้าม", "ยุ้งฉาง", "เผา", "เกิด"] },
+  { w: ["fox", "box", "bucks", "books"], t: ["สุนัขจิ้งจอก", "กล่อง", "เงินดอลลาร์", "หนังสือ"] },
+  { w: ["key", "quai", "kiwi", "guy"], t: ["กุญแจ", "(คำโบราณ)", "กีวี", "ผู้ชาย"] },
+  { w: ["sea", "see", "sis", "sigh"], t: ["ทะเล", "เห็น", "(คำย่อ)", "ถอนหายใจ"] },
+  { w: ["tea", "tee", "they", "tie"], t: ["ชา", "ที่วางลูกกอล์ฟ", "พวกเขา", "ผูก/เนกไท"] },
+  { w: ["we'll", "wheel", "well", "wheal"], t: ["เราจะ", "ล้อ", "ดี", "ผื่น/ฝี"] },
+  { w: ["he'll", "hill", "hell", "heel"], t: ["เขาจะ", "เนินเขา", "นรก", "ส้นเท้า"] },
+  { w: ["she'll", "shell", "shall", "shelf"], t: ["เธอจะ", "เปลือกหอย", "จะ", "ชั้นวาง"] },
+  { w: ["I'll", "aisle", "isle", "is"], t: ["ฉันจะ", "ทางเดิน", "เกาะ", "เป็น"] },
+  { w: ["we've", "wave", "waive", "weave"], t: ["เรามี", "คลื่น", "สละสิทธิ์", "ทอ"] },
+  { w: ["I've", "ivy", "hive", "survive"], t: ["ฉันมี", "ไม้เลื้อย", "รังผึ้ง", "รอดชีวิต"] },
+  { w: ["you've", "you'd", "yew", "ewe"], t: ["คุณมี", "คุณจะ", "ต้นยู", "แกะตัวเมีย"] },
+  { w: ["they'd", "that'd", "the ad", "debt"], t: ["พวกเขาจะ", "อันนั้นจะ", "โฆษณานั้น", "หนี้"] },
+  { w: ["there's", "theirs", "their", "threat"], t: ["มี/ที่นี่คือ", "ของพวกเขา", "ของพวกเขา", "ภัยคุกคาม"] },
+  { w: ["ought", "aught", "art", "at"], t: ["ควร", "อะไรก็ตาม(โบราณ)", "ศิลปะ", "ที่"] },
+  { w: ["a hundred", "a hunt", "hungered", "hindered"], t: ["หนึ่งร้อย", "การล่า", "หิวโหย", "ขัดขวาง"] },
+  { w: ["fixing", "fission", "fiction", "fixture"], t: ["กำลังซ่อม", "ฟิชชัน", "นิยาย", "อุปกรณ์ติดตั้ง"] },
+  { w: ["mixing", "mission", "missing", "midden"], t: ["กำลังผสม", "ภารกิจ", "หายไป", "กองขยะ"] },
+  { w: ["action", "auction", "axion", "achieve"], t: ["การกระทำ", "การประมูล", "แอกซิออน", "บรรลุ"] },
+  { w: ["caution", "cushion", "caption", "captain"], t: ["ความระมัดระวัง", "เบาะรอง", "คำบรรยายภาพ", "กัปตัน"] },
+  { w: ["motion", "notion", "mention", "mansion"], t: ["การเคลื่อนไหว", "ความคิด", "กล่าวถึง", "คฤหาสน์"] },
+  { w: ["shock", "sock", "shuck", "shack"], t: ["ตกใจ", "ถุงเท้า", "ปลอกเปลือก", "กระท่อม"] },
+  { w: ["lock", "luck", "lark", "look"], t: ["ล็อก", "โชค", "นกสนุกสนาน", "มอง"] },
+  { w: ["rock", "rack", "rork", "rook"], t: ["หิน", "ชั้นวาง", "(คำโบราณ)", "เรือรบ"] },
+  { w: ["sock", "suck", "seek", "sick"], t: ["ถุงเท้า", "ดูด", "แสวงหา", "ป่วย"] },
+  { w: ["duck", "dock", "deck", "dank"], t: ["เป็ด", "ท่าเรือ", "ดาดฟ้า", "ชื้น"] },
+  { w: ["pluck", "plug", "plague", "plough"], t: ["ถอน/ดึง", "ปลั๊ก", "โรคระบาด", "ไถ"] },
+  { w: ["stuck", "stack", "stick", "stock"], t: ["ติดค้าง", "กอง", "ไม้/ติด", "หุ้น/ของคลัง"] },
+  { w: ["truck", "track", "trick", "trunk"], t: ["รถบรรทุก", "ราง", "กลอุบาย", "ลำต้น"] },
+  { w: ["buck", "back", "beck", "book"], t: ["กวางตัวผู้", "หลัง", "กวักมือ", "หนังสือ"] },
+  { w: ["luck", "lack", "leak", "like"], t: ["โชค", "ขาด", "รั่ว", "ชอบ"] },
+  { w: ["tuck", "tack", "tick", "teak"], t: ["เหน็บ/ซุก", "หมุด", "เห็บ", "ไม้สัก"] },
+  { w: ["chip", "chop", "chap", "cheap"], t: ["มันฝรั่งทอดแผ่น", "สับ", "เพื่อน", "ราคาถูก"] },
+  { w: ["shop", "ship", "sheep", "shape"], t: ["ร้านค้า", "เรือ", "แกะ", "รูปร่าง"] },
+  { w: ["drop", "drag", "drip", "draw"], t: ["หยด", "ลาก", "หยดน้ำ", "วาด"] },
+  { w: ["flap", "flip", "flop", "flaw"], t: ["กระพือ", "พลิก", "ล้มเหลว", "ข้อบกพร่อง"] },
+  { w: ["glove", "globe", "glow", "grove"], t: ["ถุงมือ", "ลูกโลก", "เรืองแสง", "ดงไม้"] },
+  { w: ["oven", "given", "seven", "heaven"], t: ["เตาอบ", "ให้มาแล้ว", "เจ็ด", "สวรรค์"] },
+  { w: ["shovel", "shiver", "shuffle", "saddle"], t: ["พลั่ว", "สั่นเทา", "สับไพ่", "อาน"] },
+  { w: ["cover", "color", "colder", "collar"], t: ["ปกคลุม", "สี", "หนาวกว่า", "ปกเสื้อ"] },
+  { w: ["recover", "receiver", "requiem", "rhumba"], t: ["ฟื้นตัว", "เครื่องรับ", "เพลงศพ", "จังหวะรุมบา"] },
+  { w: ["learn", "earning", "yearn", "earn"], t: ["เรียนรู้", "กำลังหามา", "โหยหา", "หาเงิน"] },
+  { w: ["throughout", "through", "thorough", "borough"], t: ["ตลอด", "ผ่าน", "อย่างละเอียด", "เขตเทศบาล"] },
+  { w: ["though", "thought", "taught", "tough"], t: ["แม้ว่า", "ความคิด", "สอนแล้ว", "แข็งแกร่ง"] },
+  { w: ["thorough", "borough", "burrow", "sorrow"], t: ["อย่างละเอียด", "เขตเทศบาล", "โพรง", "ความเศร้า"] },
+  { w: ["enough", "tough", "rough", "cough"], t: ["พอเพียง", "แข็งแกร่ง", "ขรุขระ", "ไอ"] },
+  { w: ["sleigh", "slay", "sly", "fly"], t: ["เลื่อนหิมะ", "ฆ่า", "เจ้าเล่ห์", "บิน"] },
+  { w: ["height", "hate", "white", "weight"], t: ["ความสูง", "เกลียด", "สีขาว", "น้ำหนัก"] },
+  { w: ["weight", "wait", "wet", "wheat"], t: ["น้ำหนัก", "รอ", "เปียก", "ข้าวสาลี"] },
+  { w: ["eight", "ate", "aide", "aid"], t: ["แปด", "ได้กินแล้ว", "ผู้ช่วย", "ความช่วยเหลือ"] },
+  { w: ["freight", "frate", "fright", "flight"], t: ["สินค้า", "(คำโบราณ)", "ความตกใจ", "เที่ยวบิน"] },
+  { w: ["neighbor", "naber", "never", "naive"], t: ["เพื่อนบ้าน", "(คำโบราณ)", "ไม่เคย", "ไร้เดียงสา"] },
+  { w: ["leisure", "pleasure", "seizure", "linger"], t: ["เวลาว่าง", "ความสุข", "อาการชัก", "อ้อยอิ่ง"] },
+  { w: ["gauge", "gouge", "gorge", "rage"], t: ["มาตรวัด", "ควัก", "หุบเขา/อัด", "ความโกรธ"] },
+  { w: ["restaurant", "restaurateur", "remembrance", "restlessness"], t: ["ร้านอาหาร", "เจ้าของร้านอาหาร", "ความทรงจำ", "ความกระสับกระส่าย"] },
+  { w: ["treasure", "measure", "pressure", "creature"], t: ["สมบัติ", "วัด", "ความกดดัน", "สิ่งมีชีวิต"] },
+  { w: ["pleasure", "treasure", "harbor", "barber"], t: ["ความสุข", "สมบัติ", "ท่าเรือ", "ช่างตัดผม"] },
+  { w: ["instant", "instance", "insistence", "instinct"], t: ["ทันที", "ตัวอย่าง", "การยืนกราน", "สัญชาตญาณ"] },
+  { w: ["instance", "dance", "stance", "essence"], t: ["ตัวอย่าง", "เต้นรำ", "ท่าทาง", "แก่นแท้"] },
+  { w: ["substance", "subsistence", "instants", "consistence"], t: ["สาร", "การยังชีพ", "ทันที(พหูพจน์)", "ความสม่ำเสมอ"] },
+  { w: ["circumstance", "circumference", "circular", "circulation"], t: ["สถานการณ์", "เส้นรอบวง", "วงกลม", "การหมุนเวียน"] },
+  { w: ["conference", "reference", "preference", "difference"], t: ["การประชุม", "การอ้างอิง", "ความชอบ", "ความแตกต่าง"] },
+  { w: ["difference", "deference", "differential", "indifference"], t: ["ความแตกต่าง", "ความเคารพ", "ผลต่าง", "ความไม่แยแส"] },
+  { w: ["patience", "patients", "pattens", "scenes"], t: ["ความอดทน", "ผู้ป่วย", "รองเท้าไม้", "ฉาก"] },
+  { w: ["patients", "patience", "potions", "potion"], t: ["ผู้ป่วย", "ความอดทน", "ยาต้ม", "ยา"] },
+  { w: ["presence", "presents", "pleasant", "peasant"], t: ["การปรากฏตัว", "ของขวัญ", "น่ารื่นรมย์", "ชาวนา"] },
+  { w: ["essence", "existence", "excellence", "absence"], t: ["แก่นแท้", "การดำรงอยู่", "ความเป็นเลิศ", "การขาด"] },
+  { w: ["science", "sigh", "silence", "salience"], t: ["วิทยาศาสตร์", "ถอนหายใจ", "ความเงียบ", "ความโดดเด่น"] },
+  { w: ["conscience", "conscious", "consequence", "consonance"], t: ["มโนธรรม", "รู้สึกตัว", "ผลที่ตามมา", "ความสอดคล้อง"] },
+  { w: ["calculate", "celebrate", "circulate", "coagulate"], t: ["คำนวณ", "เฉลิมฉลอง", "หมุนเวียน", "แข็งตัว"] },
+  { w: ["capital", "capitol", "captal", "cotton"], t: ["เมืองหลวง", "อาคารรัฐสภา", "(คำโบราณ)", "ฝ้าย"] },
+  { w: ["opening", "operating", "opium", "owner"], t: ["การเปิด", "การดำเนินการ", "ฝิ่น", "เจ้าของ"] },
+  { w: ["possible", "probable", "portable", "pebble"], t: ["เป็นไปได้", "น่าจะ", "พกพา", "หินกรวด"] },
+  { w: ["fossil", "castle", "hazel", "frizzle"], t: ["ฟอสซิล", "ปราสาท", "สีน้ำตาลแดง", "ม้วนทอดกรอบ"] },
+  { w: ["pencil", "pennant", "pensive", "peel"], t: ["ดินสอ", "ธงเรือ", "ครุ่นคิด", "เปลือก"] },
+  { w: ["marble", "marbling", "mumble", "ramble"], t: ["หินอ่อน", "ลวดลายหิน", "พึมพำ", "เดินย่อย"] },
+  { w: ["garble", "grumble", "gurgle", "gobble"], t: ["บิดเบือน", "บ่น", "เสียงลูกล้อ", "เขมือบ"] },
+  { w: ["table", "trable", "tremble", "rumble"], t: ["โต๊ะ", "(คำโบราณ)", "สั่นเทา", "เสียงคำราม"] },
+  { w: ["vegetable", "vegetarian", "vigor", "vessel"], t: ["ผัก", "มังสวิรัติ", "พลัง", "ภาชนะ"] },
+  { w: ["admirable", "admiral", "metal", "medal"], t: ["น่าชื่นชม", "พลเรือเอก", "โลหะ", "เหรียญ"] },
+  { w: ["miserable", "miser", "measure", "mercy"], t: ["น่าสังเวช", "คนขี้เหนียว", "วัด", "ความเมตตา"] },
+  { w: ["capable", "capacitor", "cabbage", "curb"], t: ["มีความสามารถ", "ตัวเก็บประจุ", "กะหล่ำปลี", "ขอบถนน"] },
+  { w: ["enviable", "envy", "envoy", "envob"], t: ["น่าอิจฉา", "ความอิจฉา", "ทูต", "(คำโบราณ)"] },
+  { w: ["comfortable", "comfort", "comfit", "comfy"], t: ["สบาย", "ความสบาย", "ลูกกวาด", "สบายๆ"] },
+  { w: ["profitable", "prophet", "profit", "prolific"], t: ["มีกำไร", "ผู้เผยพระวจนะ", "กำไร", "ดกดื่น"] },
+  { w: ["vegetable", "veritable", "variable", "variety"], t: ["ผัก", "แท้จริง", "แปรผัน", "ความหลากหลาย"] },
+  { w: ["memory", "memoir", "memo", "murmur"], t: ["ความทรงจำ", "บันทึกความทรงจำ", "บันทึกช่วยจำ", "เสียงพึมพำ"] },
+  { w: ["history", "hysterical", "hither", "historian"], t: ["ประวัติศาสตร์", "ตีโพยตีพาย", "มาที่นี่", "นักประวัติศาสตร์"] },
+  { w: ["cancellation", "congratulation", "conciliation", "constellation"], t: ["การยกเลิก", "การแสดงความยินดี", "การไกล่เกลี่ย", "กลุ่มดาว"] },
+  { w: ["individual", "indivisible", "invisible", "indispensable"], t: ["บุคคล", "แบ่งแยกไม่ได้", "ล่องหน", "ขาดไม่ได้"] },
+  { w: ["essential", "especially", "initial", "partial"], t: ["จำเป็น", "โดยเฉพาะ", "เริ่มแรก", "บางส่วน"] },
+  { w: ["receipt", "receive", "deceit", "conceit"], t: ["ใบเสร็จ", "ได้รับ", "การหลอกลวง", "ความถือตัว"] },
+  { w: ["conceited", "conceded", "consisted", "confessed"], t: ["ถือตัว", "ยอมรับแล้ว", "ประกอบด้วยแล้ว", "สารภาพแล้ว"] },
+  { w: ["neighbor", "labour", "harbor", "favor"], t: ["เพื่อนบ้าน", "แรงงาน", "ท่าเรือ", "ความโปรดปราน"] },
+  { w: ["honor", "color", "favor", "parlor"], t: ["เกียรติ", "สี", "ความโปรดปราน", "ห้องรับแขก"] },
+  { w: ["behavior", "halvah", "boyar", "beaver"], t: ["พฤติกรรม", "ขนมฮัลวา", "ขุนนางรัสเซีย", "บีเวอร์"] },
+  { w: ["prefer", "prepare", "perform", "purport"], t: ["ชอบมากกว่า", "เตรียม", "แสดง", "อ้างว่า"] },
+  { w: ["preference", "prefer", "reference", "inference"], t: ["ความชอบ", "ชอบมากกว่า", "การอ้างอิง", "การอนุมาน"] },
+  { w: ["occur", "upset", "appear", "a pair"], t: ["เกิดขึ้น", "เสียใจ", "ปรากฏ", "คู่หนึ่ง"] },
+  { w: ["occurrence", "recurrence", "concurrence", "conference"], t: ["การเกิดขึ้น", "การเกิดซ้ำ", "ความเห็นพ้อง", "การประชุม"] },
+  { w: ["successful", "successive", "subsequent", "succeed"], t: ["ประสบความสำเร็จ", "ต่อเนื่องกัน", "ต่อมา", "ประสบความสำเร็จ"] },
+  { w: ["aggressive", "impressive", "expressive", "oppressive"], t: ["ก้าวร้าว", "น่าประทับใจ", "มีสีสัน", "กดขี่"] },
+  { w: ["necessary", "necessarily", "necessity", "cessation"], t: ["จำเป็น", "อย่างจำเป็น", "ความจำเป็น", "การหยุดชะงัก"] },
+  { w: ["accessories", "accessory", "accessibility", "accountability"], t: ["เครื่องประดับ", "อุปกรณ์เสริม", "การเข้าถึง", "ความรับผิดชอบ"] },
+  { w: ["assessment", "assistant", "assignment", "alignment"], t: ["การประเมิน", "ผู้ช่วย", "การมอบหมาย", "การจัดแนว"] },
+  { w: ["embarrass", "apparatus", "batteries", "bananas"], t: ["ทำให้อับอาย", "อุปกรณ์", "แบตเตอรี่", "กล้วย"] },
+  { w: ["arrange", "orange", "manage", "storage"], t: ["จัดเรียง", "ส้ม", "จัดการ", "ที่เก็บ"] },
+  { w: ["arrange", "rang", "arranged", "rained"], t: ["จัดเรียง", "ดังแล้ว", "จัดแล้ว", "ฝนตกแล้ว"] },
+  { w: ["horizon", "horizontal", "hospice", "hover"], t: ["ขอบฟ้า", "แนวนอน", "บ้านพักคนป่วย", "ลอย"] },
+  { w: ["lizard", "leopard", "wizard", "hazard"], t: ["จิ้งจก", "เสือดาว", "พ่อมด", "อันตราย"] },
+  { w: ["plastic", "elastic", "plaster", "pester"], t: ["พลาสติก", "ยืดหยุ่น", "ปูนปลาสเตอร์", "รบกวน"] },
+  { w: ["comfort", "combat", "compact", "comf"], t: ["ความสบาย", "การต่อสู้", "กะทัดรัด", "(คำย่อ)"] },
+  { w: ["conquer", "conqueror", "canker", "cancer"], t: ["พิชิต", "ผู้พิชิต", "แผล", "มะเร็ง"] },
+  { w: ["conquest", "quest", "quick", "quaint"], t: ["การพิชิต", "การแสวงหา", "เร็ว", "โบราณน่ารัก"] },
+  { w: ["inquire", "enquire", "require", "inquest"], t: ["สอบถาม", "สอบถาม(แบบอังกฤษ)", "ต้องการ", "การไต่สวน"] },
+  { w: ["acquire", "acquitted", "acquaint", "quantity"], t: ["ได้มา", "พ้นผิดแล้ว", "คุ้นเคย", "ปริมาณ"] },
+  { w: ["quality", "quantity", "quail", "quite"], t: ["คุณภาพ", "ปริมาณ", "นกคุ่ม", "ค่อนข้าง"] },
+  { w: ["quick", "quit", "quite", "quote"], t: ["เร็ว", "เลิก", "ค่อนข้าง", "อ้างอิง"] },
   { w: ["hear", "here", "hair", "hare"], t: ["ได้ยิน", "ที่นี่", "ผม", "กระต่าย"] },
   { w: ["read", "red", "ride", "raid"], t: ["อ่าน", "สีแดง", "ขี่", "บุกจู่โจม"] },
   { w: ["write", "right", "rite", "slight"], t: ["เขียน", "ขวา/ถูกต้อง", "พิธีกรรม", "เล็กน้อย"] },
@@ -6445,7 +7140,7 @@ async function module5SaveToGAS(totalAttempted) {
       const payload = {
         action: "saveProgress",
         sheet: "progress",
-        spreadsheetId: (typeof DEFAULT_SHEET_ID !== 'undefined') ? DEFAULT_SHEET_ID : "",
+        spreadsheetId: (typeof getEffectiveSheetId === 'function') ? getEffectiveSheetId() : (typeof DEFAULT_SHEET_ID !== 'undefined' ? DEFAULT_SHEET_ID : ""),
         category: "ฟังคำเสียงคล้าย (M5)",
         score: `${module5State.score}/${totalAttempted}`,
         level: userLevel,
@@ -6453,13 +7148,13 @@ async function module5SaveToGAS(totalAttempted) {
         remarks: "Modal 5 Listening - Similar Sounding Words (ไม่ปรับ CEFR)"
       };
 
-      const targetUrl = (typeof DEFAULT_GAS_URL !== 'undefined') ? DEFAULT_GAS_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+      const targetUrl = (typeof getEffectiveGasUrl === 'function') ? getEffectiveGasUrl() : (typeof DEFAULT_GAS_URL !== 'undefined' ? DEFAULT_GAS_URL : (typeof API_URL !== 'undefined' ? API_URL : ""));
       if (targetUrl) {
-        await fetch(targetUrl, {
+        await fetchWithTimeout(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
-        });
+        }, 8000);
       }
       if (typeof refreshUserStats === 'function') refreshUserStats();
     } catch (e) {
