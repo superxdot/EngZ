@@ -305,7 +305,7 @@
               <p class="text-xs text-purple-900/80 font-medium" id="demo-code-hint">
                 🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
               </p>
-              <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4-5 — v3.4</p>
+              <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4-5 — v3.5</p>
             </div>
           </div>
         </div>
@@ -1501,8 +1501,8 @@ window.addEventListener('click', unlockAudioEngine, { once: true });
         if (hintElem) hintElem.innerHTML = `<span class="text-purple-600 font-bold animate-pulse">🔄 กำลังล้างแคช และซิงค์จาก คราวด์...</span>`;
         try {
           const u = await fetchSheetData("users");
-          const q = await fetchSheetData("questions");
-          const bq = await fetchSheetData("business_questions");
+          const q = await fetchSheetData("questions", { cache: true });
+          const bq = await fetchSheetData("business_questions", { cache: true });
           const s = await fetchSheetData("sessions");
           
           if (u && u.length > 0) {
@@ -2285,9 +2285,48 @@ function updateAdminStatsUI() {
       }
     }
 
-    async function fetchSheetData(sheetName) {
+    // ===== Sheet Cache (เฉพาะข้อสอบ questions/business_questions; ล็อกอิน-ระดับยังโหลดสดเสมอ) =====
+    const SHEET_CACHE_TTL_MS = 30 * 60 * 1000;
+
+    function sheetCacheKey(sheetName) {
+      return 'cefr_sheet_' + (appState.settings.sheetId || 'id') + '_' + sheetName;
+    }
+
+    function readSheetCache(sheetName) {
+      try {
+        const raw = localStorage.getItem(sheetCacheKey(sheetName));
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (!obj || !Array.isArray(obj.rows) || typeof obj.ts !== 'number') return null;
+        return obj;
+      } catch (e) { return null; }
+    }
+
+    function writeSheetCache(sheetName, rows) {
+      try {
+        localStorage.setItem(sheetCacheKey(sheetName), JSON.stringify({ ts: Date.now(), rows: rows }));
+      } catch (e) {
+        try { localStorage.removeItem(sheetCacheKey(sheetName)); } catch (_) {}
+      }
+    }
+
+    async function fetchSheetData(sheetName, opts) {
+      opts = opts || {};
+      const useCache = !!opts.cache;
+      const cacheTtl = opts.ttl || SHEET_CACHE_TTL_MS;
       const sheetId = appState.settings.sheetId;
       if (!sheetId) return null;
+
+      if (useCache) {
+        const hit = readSheetCache(sheetName);
+        if (hit && Date.now() - hit.ts < cacheTtl) {
+          // revalidate เบื้องหลัง (ไม่บล็อกการฝึกเรียน) แล้วเขียน cache ใหม่เงียบๆ
+          fetchSheetData(sheetName, {}).then(fresh => {
+            if (fresh && fresh.length) writeSheetCache(sheetName, fresh);
+          }).catch(() => {});
+          return hit.rows;
+        }
+      }
 
       let rawRows = null;
       const cacheBuster = Date.now(); 
@@ -2321,7 +2360,7 @@ function updateAdminStatsUI() {
 
       if (!rawRows && appState.settings.gasUrl) {
         try {
-          const gasReadUrl = `${appState.settings.gasUrl}?action=read&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}&spreadsheetId=${appState.settings.sheetId}`;
+          const gasReadUrl = `${appState.settings.gasUrl}?action=read&sheet=${encodeURIComponent(sheetName)}&t=${cacheBuster}&spreadsheetId=${sheetId}`;
           const gasResponse = await fetchWithTimeout(gasReadUrl, { method: "GET" }, 10000);
           const gasJson = await gasResponse.json();
           if (gasJson && gasJson.status === "success") {
@@ -2333,7 +2372,9 @@ function updateAdminStatsUI() {
       }
 
       if (rawRows) {
-        return normalizeFetchedRows(rawRows);
+        const normalized = normalizeFetchedRows(rawRows);
+        if (useCache && normalized && normalized.length) writeSheetCache(sheetName, normalized);
+        return normalized;
       }
       return null;
     }
@@ -2607,7 +2648,7 @@ function updateAdminStatsUI() {
 
   if (appState.settings.mode === 'sheets') {
     const sheetTarget = category === 'general' ? 'questions' : 'business_questions';
-    allQuestions = await fetchSheetData(sheetTarget) || [];
+    allQuestions = await fetchSheetData(sheetTarget, { cache: true }) || [];
   } else {
     allQuestions = category === 'general' ? appState.db.questions : appState.db.business_questions;
   }
@@ -5352,7 +5393,7 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000, 
                   if (!questionRows) {
                       try {
                           if (typeof fetchSheetData === 'function') {
-                              questionRows = await fetchSheetData('questions');
+                              questionRows = await fetchSheetData('questions', { cache: true });
                           }
                       } catch (e) {
                           console.warn('Module4 fetchSheetData failed, fallback GAS direct:', e);
