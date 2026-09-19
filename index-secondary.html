@@ -285,7 +285,7 @@
 
             <div class="mt-6 pt-5 border-t border-slate-100 text-center">
               <p class="text-xs text-slate-600 font-medium" id="demo-code-hint">
-                🔄 กำลังสแกนหาเครือข่ายฐานข้อมูลผู้เรียน...
+                👤 กรอกรหัสประจำตัวผู้เรียนเพื่อเริ่มฝึก
               </p>
               <p class="text-[10px] text-slate-300 mt-1 font-mono">การเข้าเรียนในหมวดที่ 2-3-4-5 — v3.5</p>
             </div>
@@ -1482,7 +1482,10 @@ window.addEventListener('click', unlockAudioEngine, { once: true });
       updateModeUI();
     }
 
+    let _initialStatsStarted = false;
     async function loadInitialStats() {
+      if (_initialStatsStarted) return;
+      _initialStatsStarted = true;
       const hintElem = document.getElementById('demo-code-hint');
       if (appState.settings.mode === 'sheets' && appState.settings.sheetId) {
         if (hintElem) hintElem.innerHTML = `<span class="text-purple-600 font-bold animate-pulse">🔄 กำลังล้างแคช และซิงค์จาก คราวด์...</span>`;
@@ -1512,6 +1515,17 @@ window.addEventListener('click', unlockAudioEngine, { once: true });
       updateAdminStatsUI();
       populateDialogueDropdown(); 
     }
+
+    // อัปเดตข้อความสถานะที่หน้า login ทันทีที่ DOM พร้อม
+    // (ไม่ต้องรอ window.onload ซึ่งอาจค้างจากการโหลดรูปภาพ/CDN ช้า)
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        if (typeof parseUrlParametersAndInit === 'function') parseUrlParametersAndInit();
+        loadInitialStats();
+      } catch (e) {
+        console.warn("early loadInitialStats failed:", e);
+      }
+    });
 
     function updateModeUI() {
       const btnSwitchDemo = document.getElementById('admin-btn-mode');
@@ -2238,15 +2252,21 @@ function updateAdminStatsUI() {
     }
 
     async function handleLogout() {
-      stopBackgroundMusic();
-      if (appState.user) {
-        await logSessionToGAS("logout", appState.user.code);
-      }
+      let loggedUserCode = null;
+      try {
+        if (typeof stopBackgroundMusic === 'function') stopBackgroundMusic();
+        loggedUserCode = appState.user ? appState.user.code : null;
+      } catch (e) {}
       localStorage.removeItem('cefr_user_session');
       sessionStorage.clear();
       appState.user = null;
-      switchView('login');
+      try { switchView('login'); } catch (e) {}
+      if (typeof showLoadingState === 'function') showLoadingState(false);
       alertToast("ออกจากระบบและลงเวลากลับสำเร็จ", "success");
+      // บันทึก log ปิดเซสชันแบบเบื้องหลัง (ไม่บล็อกการกลับหน้าแรก)
+      if (loggedUserCode) {
+        logSessionToGAS("logout", loggedUserCode).catch(() => {});
+      }
     }
 
     function showLoadingState(show) {

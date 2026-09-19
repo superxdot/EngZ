@@ -235,35 +235,32 @@
       <div class="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 bg-white rounded-3xl shadow-2xl border border-purple-100 overflow-hidden min-h-[500px] mx-4 z-10">
         
         <!-- Left Side: Cover Info -->
-        <div class="hidden lg:flex lg:col-span-5 relative bg-indigo-950 flex-col justify-between p-8 text-white overflow-hidden">
+        <div class="hidden lg:flex lg:col-span-5 relative bg-indigo-950 flex-col text-white overflow-hidden min-h-[500px]">
           <!-- ปรับปรุงจุดนี้: ลบ opacity-20 และ mix-blend-luminosity ออก เพื่อไม่ให้ภาพมืด/ขาวดำ -->
-            <img id="login-side-img" src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e1b4b/ffffff?text=CEFR+Platform';" class="absolute inset-0 w-full h-full object-cover" alt="Learning and Technology">
-
-
-
+          <img id="login-side-img" src="https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800&auto=format&fit=crop" onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e1b4b/ffffff?text=CEFR+Platform';" class="absolute inset-0 w-full h-full object-cover" alt="Learning and Technology">
 
           <!-- ปรับปรุงจุดนี้: ลบเลเยอร์ Overlay สีม่วง/น้ำเงินทับภาพออกโดยสิ้นเชิง -->
-          
-          <div class="relative z-10">
-            <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase bg-purple-500/20 border border-purple-400/30 rounded-full tracking-widest text-purple-200">
+
+          <div class="absolute top-4 left-4 z-20">
+            <span class="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-purple-500/20 border border-purple-400/30 rounded-full tracking-widest text-purple-200">
               AI Powered
             </span>
           </div>
-          
-          <!-- ปรับปรุงจุดนี้: เพิ่ม bg-slate-950/40 backdrop-blur-sm p-4 rounded-2xl เพื่อให้ตัวหนังสือยังคงอ่านง่ายชัดเจนบนตัวภาพจริง -->
-          <div class="relative z-10 flex flex-col gap-3 bg-slate-950/40 backdrop-blur-sm p-4 rounded-2xl">
-            <h2 class="text-xl font-bold leading-tight text-purple-100">Elevate Your Language Journey</h2>
-            <p class="text-[11px] text-purple-200/95 leading-relaxed">
-              พัฒนาทักษะด้านไวยากรณ์ การฟัง และสำเนียงการอ่านออกเสียงโต้ตอบแบบเรียลไทม์กับระบบประเมินอัจฉริยะที่ออกแบบมาเพื่อสร้างความมั่นใจในทุกการสนทนาอย่างแท้จริง
+
+          <!-- ปรับปรุงจุดนี้: การ์ดข้อความเล็ก อยู่ชิดด้านล่างของรูป ไม่บังส่วนบน -->
+          <div class="relative z-10 mt-auto mx-4 mb-4 flex flex-col gap-2 bg-slate-950/45 backdrop-blur-sm px-4 py-3 rounded-2xl border border-white/10 shadow-lg">
+            <h2 id="login-quote-en" class="text-base font-bold leading-tight text-purple-100 transition-opacity duration-500">Elevate Your Language Journey</h2>
+            <p id="login-quote-th" class="text-[10px] text-purple-200/95 leading-relaxed transition-opacity duration-500">
+              พัฒนาทักษะภาษาอังกฤษของคุณไปอีกขั้น ผ่านการเรียนออนไลน์ที่ทุกคนเข้าถึงได้ทุกที่ ทุกเวลา
             </p>
-            <div class="mt-4 flex flex-col gap-2 text-[10px] text-purple-300">
+            <div class="mt-2 flex flex-col gap-1.5 text-[10px] text-purple-300">
               <div class="flex items-center gap-1.5">
                 <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-                <span>ระบบรักษาความปลอดภัยซอร์สโค้ด</span>
+                <span>ปลอดภัย ตรวจสอบได้แบบเรียลไทม์</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
-                <span>รายงานอัปเดต CEFR อัตโนมัติ</span>
+                <span>รายงานพัฒนาการ CEFR อัตโนมัติ</span>
               </div>
             </div>
           </div>
@@ -953,6 +950,36 @@
       }
     }
 
+    // ==================== ROTATING LOGIN QUOTES (EN/TH) ====================
+    const LOGIN_QUOTES = [
+      { en: "Elevate Your Language Journey", th: "พัฒนาทักษะภาษาอังกฤษของคุณไปอีกขั้น ผ่านการเรียนออนไลน์ที่ทุกคนเข้าถึงได้ทุกที่ ทุกเวลา" },
+      { en: "Learn English Anytime, Anywhere", th: "เรียนภาษาอังกฤษออนไลน์ได้ทุกที่ทุกเวลา ไม่มีขีดจำกัดเรื่องเวลาและสถานที่" },
+      { en: "Master English with Smart Practice", th: "เก่งภาษาอังกฤษด้วยการฝึกฝนอัจฉริยะที่ออกแบบมาเฉพาะระดับของคุณ" },
+      { en: "Unlock Your English Potential", th: "ปลดล็อกศักยภาพภาษาอังกฤษของคุณกับระบบประเมินผล CEFR แบบเรียลไทม์" },
+      { en: "Study Online, Speak Confidently", th: "เรียนออนไลน์ ฝึกสนทนาและออกเสียงอย่างมั่นใจกับแบบฝึกหัดที่หลากหลาย" },
+      { en: "Your Daily English Coach", th: "โค้ชภาษาอังกฤษออนไลน์ประจำตัวคุณ ที่พร้อมฝึกกับคุณทุกวัน" },
+      { en: "From A1 to Fluent, Race Ahead", th: "ก้าวจากระดับ A1 ไปสู่ความคล่องแคล่ว พร้อมติดตามพัฒนาการของคุณเอง" },
+      { en: "Interactive English Lessons for Everyone", th: "บทเรียนภาษาอังกฤษออนไลน์แบบโต้ตอบ สำหรับผู้เรียนทุกระดับ" },
+      { en: "Build Vocabulary, Grammar & Listening", th: "เสริมคำศัพท์ ไวยากรณ์ และทักษะการฟังได้ครบจบในที่เดียว" },
+      { en: "Track Your Progress, Stay Motivated", th: "ติดตามความก้าวหน้าของคุณและมีแรงบันดาลใจไปทุกบทเรียน" }
+    ];
+    let _loginQuoteIdx = 0;
+    function rotateLoginQuotes() {
+      const enEl = document.getElementById('login-quote-en');
+      const thEl = document.getElementById('login-quote-th');
+      if (!enEl || !thEl) return;
+      const q = LOGIN_QUOTES[_loginQuoteIdx];
+      enEl.style.opacity = '0';
+      thEl.style.opacity = '0';
+      setTimeout(() => {
+        enEl.textContent = q.en;
+        thEl.textContent = q.th;
+        enEl.style.opacity = '1';
+        thEl.style.opacity = '1';
+      }, 450);
+      _loginQuoteIdx = (_loginQuoteIdx + 1) % LOGIN_QUOTES.length;
+    }
+
     // ==================== INITIALIZATION & NETWORK PARSING ====================
     window.onload = function() {
       localStorage.removeItem('cefr_user_session');
@@ -971,6 +998,9 @@
       loadInitialStats(); 
       activateSecurityShield(); 
       window.addEventListener('resize', adjustLayoutForMobile);
+
+      rotateLoginQuotes();
+      setInterval(rotateLoginQuotes, 5000);
     };
 
 //=========================== เพิ่มเรื่องเสียงที่ต้องกด ให้ทำงาน =======================
