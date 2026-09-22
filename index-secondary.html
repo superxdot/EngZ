@@ -530,7 +530,7 @@
             <!-- Thai Translation Text Area -->
             <div id="thai-translation-box" class="bg-violet-100 border-l-4 border-violet-600 p-4 sm:p-5 rounded-r-2xl text-slate-950 shadow-sm">
               <div class="text-[10px] sm:text-xs text-violet-700 font-extrabold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <i data-lucide="languages" class="w-4 h-4"></i> ความหมายภาษาไทย (Translation)
+                <i data-lucide="languages" class="w-4 h-4"></i> <span id="thai-translation-label-text">ความหมายภาษาไทย (Translation)</span>
               </div>
               <span id="thai-translation-text" class="text-base sm:text-lg md:text-xl font-bold block leading-relaxed text-slate-900">-</span>
             </div>
@@ -2901,6 +2901,13 @@ function updateAdminStatsUI() {
       pract.scrambleSelected = []; 
       
       document.getElementById('thai-translation-text').innerText = q.translation || "ไม่มีคำแปล";
+
+      const translationLabel = document.getElementById('thai-translation-label-text');
+      if (translationLabel) {
+        translationLabel.innerText = (q.assignedMode === 'reading')
+          ? "คำถามในแบบฝึกหัดนี้ ให้คลิกคำทุกคำด้านล่างเพื่อเป็นคำตอบ"
+          : "ความหมายภาษาไทย (Translation)";
+      }
 
       const randomRelaxItem = RELAXING_IMAGES[Math.floor(Math.random() * RELAXING_IMAGES.length)];
       const relaxImg = document.getElementById('practice-relax-img');

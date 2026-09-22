@@ -93,6 +93,8 @@
   <style>
     body {
       font-family: 'Prompt', 'Sarabun', sans-serif;
+    }
+
 /* --- เพิ่มคลาสสำหรับระบบคลิกหลายคำ --- */
     .clickable-word {
       display: inline-block;
@@ -167,6 +169,35 @@
 
     .purple-gradient {
       background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+    }
+    
+    /* แอนิเมชันตัวหนังสือ "English upskill platform" ที่หน้า login (รองรับทุกบราวเซอร์ ไม่พึ่ง background-clip) */
+    h1.title-shimmer,
+    .title-shimmer {
+      display: inline-block;
+      transform-origin: center;
+      animation:
+        titleFloat 4s ease-in-out infinite,
+        titleGlow 3s ease-in-out infinite,
+        titleSpacing 6s ease-in-out infinite,
+        titlePulse 3s ease-in-out infinite !important;
+      will-change: transform, letter-spacing, opacity;
+    }
+    @keyframes titleFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-7px) scale(1.05); }
+    }
+    @keyframes titleGlow {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.6)) drop-shadow(0 0 22px rgba(253, 230, 138, 0.25)); }
+      50% { filter: drop-shadow(0 0 18px rgba(253, 230, 138, 0.85)) drop-shadow(0 0 40px rgba(196, 181, 253, 0.55)); }
+    }
+    @keyframes titleSpacing {
+      0%, 100% { letter-spacing: 0.02em; }
+      50% { letter-spacing: 0.16em; }
+    }
+    @keyframes titlePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.82; }
     }
     
     .custom-scrollbar::-webkit-scrollbar {
@@ -275,7 +306,7 @@
             <div class="bg-white/10 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 backdrop-blur-md border border-white/20 shadow-inner">
               <i data-lucide="graduation-cap" class="w-10 h-10 text-violet-200"></i>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-purple-50">English upskill platform</h1>
+            <h1 class="title-shimmer text-2xl font-bold tracking-tight text-purple-50 pb-1">English upskill platform</h1>
             <p class="text-violet-200 text-sm mt-1">กรอกรหัสผู้เรียนเพื่อเริ่มต้นประเมินผลและฝึกฝน</p>
           </div>
           
@@ -504,7 +535,7 @@
             <!-- Thai Translation Text Area -->
             <div id="thai-translation-box" class="bg-violet-100 border-l-4 border-violet-600 p-4 sm:p-5 rounded-r-2xl text-slate-950 shadow-sm">
               <div class="text-[10px] sm:text-xs text-violet-700 font-extrabold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <i data-lucide="languages" class="w-4 h-4"></i> ความหมายภาษาไทย (Translation)
+                <i data-lucide="languages" class="w-4 h-4"></i> <span id="thai-translation-label-text">ความหมายภาษาไทย (Translation)</span>
               </div>
               <span id="thai-translation-text" class="text-base sm:text-lg md:text-xl font-bold block leading-relaxed text-slate-900">-</span>
             </div>
@@ -1981,6 +2012,13 @@ async function handleLogout() {
       
       document.getElementById('thai-translation-text').innerText = q.translation || "ไม่มีคำแปล";
 
+      const translationLabel = document.getElementById('thai-translation-label-text');
+      if (translationLabel) {
+        translationLabel.innerText = (q.assignedMode === 'reading')
+          ? "คำถามในแบบฝึกหัดนี้ ให้คลิกคำทุกคำด้านล่างเพื่อเป็นคำตอบ"
+          : "ความหมายภาษาไทย (Translation)";
+      }
+
       const randomRelaxItem = RELAXING_IMAGES[Math.floor(Math.random() * RELAXING_IMAGES.length)];
       const relaxImg = document.getElementById('practice-relax-img');
       const relaxCaption = document.getElementById('practice-relax-caption');
@@ -2357,6 +2395,32 @@ async function handleLogout() {
 
         speakSection.appendChild(micBox);
 
+        /* ช่องพิมพ์สำรอง สำหรับบราวเซอร์ที่ไม่รองรับ Web Speech API เช่น Firefox */
+        const fbBox = document.createElement('div');
+        fbBox.id = "speech-fallback-box";
+        fbBox.className = "hidden w-full flex-col gap-2";
+        const fbInput = document.createElement('input');
+        fbInput.id = "speech-fallback-input";
+        fbInput.type = "text";
+        fbInput.className = "w-full px-4 py-3 bg-white border-2 border-purple-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-300 rounded-xl text-center text-lg font-bold text-purple-950 outline-none transition";
+        fbInput.placeholder = "พิมพ์ประโยคที่คุณพูด แล้วกดส่งคำตอบ (บราวเซอร์นี้ไม่รองรับไมโครโฟนอัตโนมัติ)";
+        fbInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            const v = fbInput.value.trim();
+            if (v) handleSpeechResult(v, targetSpeech);
+          }
+        });
+        fbBox.appendChild(fbInput);
+        const fbBtn = document.createElement('button');
+        fbBtn.className = "w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition active:scale-[0.99] shadow-sm cursor-pointer";
+        fbBtn.innerText = "ส่งคำตอบ (พิมพ์แทนการพูด)";
+        fbBtn.onclick = () => {
+          const v = fbInput.value.trim();
+          if (v) handleSpeechResult(v, targetSpeech);
+        };
+        fbBox.appendChild(fbBtn);
+        speakSection.appendChild(fbBox);
+
         const transcriptContainer = document.createElement('div');
         transcriptContainer.id = "speech-transcript-box";
         transcriptContainer.className = "hidden w-full p-3.5 bg-slate-100 rounded-xl text-center text-sm font-semibold text-slate-700 border border-slate-200";
@@ -2715,10 +2779,20 @@ async function handleLogout() {
     function startSpeechRecognition(targetText) {
       const micBtn = document.getElementById('mic-record-btn');
       const micStatus = document.getElementById('mic-status-txt');
+      const micBox = micBtn ? micBtn.closest('div') : null;
+      const fbBox = document.getElementById('speech-fallback-box');
+      const fbInput = document.getElementById('speech-fallback-input');
 
       if (!SpeechRecognition) {
-        const mockResponse = prompt("กรุณาพิมพ์จำลองออกเสียงเพื่อตอบ:");
-        if (mockResponse) handleSpeechResult(mockResponse, targetText);
+        // Firefox และบราวเซอร์อื่นๆ ที่ไม่รองรับ Web Speech API:
+        // แสดงช่องพิมพ์ประโยคในหน้าแทน ปุ่มไมโครโฟนจะถูกซ่อนไว้ชั่วคราว
+        if (micBox) micBox.classList.add('hidden');
+        if (fbBox) {
+          fbBox.classList.remove('hidden');
+          fbBox.classList.add('flex');
+          if (fbInput) setTimeout(() => fbInput.focus(), 100);
+        }
+        if (micStatus) micStatus.innerText = "📝 บราวเซอร์นี้ไม่รองรับไมโครโฟนอัตโนมัติ ใช้พิมพ์เลียนแบบแทน";
         return;
       }
 
@@ -2767,8 +2841,17 @@ async function handleLogout() {
 
           recognition.start();
         } catch (err) {
-          const mockResponse = prompt("พิมพ์เลียนประโยคออกเสียงเพื่อส่งคะแนน:");
-          if (mockResponse) handleSpeechResult(mockResponse, targetText);
+          // กรณี SpeechRecognition มีอยู่แต่ใช้ไม่ได้ (error ตอน runtime)
+          const fbBox = document.getElementById('speech-fallback-box');
+          const fbInput = document.getElementById('speech-fallback-input');
+          const micBox = micBtn.closest('div');
+          if (micBox) micBox.classList.add('hidden');
+          if (fbBox) {
+            fbBox.classList.remove('hidden');
+            fbBox.classList.add('flex');
+            if (fbInput) setTimeout(() => fbInput.focus(), 100);
+          }
+          if (micStatus) micStatus.innerText = "📝 บราวเซอร์นี้ไม่รองรับไมโครโฟนอัตโนมัติ ใช้พิมพ์เลียนแบบแทน";
         }
       }
     }
@@ -2857,6 +2940,12 @@ async function handleLogout() {
         showCorrectAnswerUI(isCorrect, q.correctAnswer, similarityPct, q.assignedMode);
         actionBtn.innerHTML = `<span>ข้อถัดไป</span> <i data-lucide="chevron-right" class="w-4 h-4"></i>`;
         safeCreateIcons();
+
+        if (pract.currentIndex >= pract.questions.length - 1) {
+          actionBtn.innerHTML = `<span>จบการฝึก</span> <i data-lucide="flag" class="w-4 h-4"></i>`;
+          safeCreateIcons();
+          setTimeout(() => { concludePracticeRound(); }, 800);
+        }
       } else {
         pract.currentIndex++;
         if (pract.currentIndex < pract.questions.length) {
