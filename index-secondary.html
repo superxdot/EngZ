@@ -2210,22 +2210,9 @@ function updateAdminStatsUI() {
         const resolvedName = getFieldValue(normUser, ['name', 'ชื่อ', 'username', 'col_1', 'col_b'], "ผู้เรียน");
         let resolvedLevel = getFieldValue(normUser, ['level', 'ระดับ', 'cefr', 'col_2', 'col_c'], "A1");
 
-        let progressRecords = [];
         if (appState.settings.mode === 'sheets') {
-          progressRecords = await fetchSheetData("progress");
-          if (progressRecords && progressRecords.length > 0) {
-            const userProgress = progressRecords.filter(p => {
-              const normP = normalizeKeys(p);
-              return Object.values(normP).some(val => 
-                String(val).trim().toLowerCase() === resolvedCode.toLowerCase()
-              );
-            });
-
-            if (userProgress.length > 0) {
-              const latestProgress = normalizeKeys(userProgress[userProgress.length - 1]);
-              resolvedLevel = getFieldValue(latestProgress, ['ระดับที่ทำได้', 'level', 'ระดับ', 'col_3', 'col_d'], resolvedLevel);
-            }
-          }
+          const progressLevel = await fetchLatestProgressLevelForUser(resolvedCode);
+          if (progressLevel) resolvedLevel = progressLevel;
         }
 
         const isBiz = ALLOWED_BIZ_LEVELS.includes(resolvedLevel.toUpperCase());
@@ -3832,6 +3819,80 @@ function updateAdminStatsUI() {
       container.appendChild(feedbackBox);
     }
 
+    const CEFR_SUB_LEVELS = [
+      "A1.1", "A1.2", "A2.1", "A2.2",
+      "B1.1", "B1.2", "B2.1", "B2.2",
+      "C1.1", "C1.2", "C2.1", "C2.2"
+    ];
+
+    function parseCefrLevel(rawLevel) {
+      if (rawLevel === undefined || rawLevel === null) return null;
+      const raw = String(rawLevel).trim().toUpperCase();
+      if (!raw || raw === 'NA') return null;
+
+      const isBiz = raw.indexOf('-BIZ') !== -1;
+      let base = raw.split('-BIZ').join('').trim();
+
+      if (CEFR_SUB_LEVELS.indexOf(base) === -1) {
+        const baseMatch = base.match(/^([ABC][12])(?:\.0)?$/);
+        if (!baseMatch) return null;
+        base = baseMatch[1] + '.1';
+        if (CEFR_SUB_LEVELS.indexOf(base) === -1) return null;
+      }
+
+      return { level: base, isBiz: isBiz };
+    }
+
+    function getProgressRowLevel(progressRow) {
+      return getFieldValue(normalizeKeys(progressRow), ['ระดับที่ทำได้', 'level', 'ระดับ', 'cefr', 'col_3', 'col_d'], '');
+    }
+
+    function getProgressRowCode(progressRow) {
+      return getFieldValue(normalizeKeys(progressRow), ['รหัสผู้เรียน', 'รหัส', 'usercode', 'user_code', 'code', 'studentcode', 'col_4', 'col_e'], '');
+    }
+
+    async function fetchLatestProgressLevelForUser(userCode) {
+      const targetCode = String(userCode || '').trim().toLowerCase();
+      if (!targetCode) return '';
+
+      let progressRows = null;
+      try {
+        progressRows = await fetchSheetData('progress');
+      } catch (err) {
+        console.warn('อ่านระดับล่าสุดจาก progress ไม่สำเร็จ:', err);
+        return '';
+      }
+
+      if (!Array.isArray(progressRows) || progressRows.length === 0) return '';
+
+      const userRows = progressRows.filter(row => getProgressRowCode(row).toLowerCase() === targetCode);
+
+      for (let i = userRows.length - 1; i >= 0; i--) {
+        const parsed = parseCefrLevel(getProgressRowLevel(userRows[i]));
+        if (parsed) return parsed.level + (parsed.isBiz ? '-BIZ' : '');
+      }
+
+      return '';
+    }
+
+    async function resolveCurrentLevelForUpdate() {
+      const candidates = [];
+
+      if (appState.user) {
+        if (appState.user.code) candidates.push(await fetchLatestProgressLevelForUser(appState.user.code));
+        if (appState.user.latestLevel) candidates.push(appState.user.latestLevel);
+        if (appState.user.level) candidates.push(appState.user.level);
+        if (appState.user.defaultLevel) candidates.push(appState.user.defaultLevel);
+      }
+
+      for (const candidate of candidates) {
+        const parsed = parseCefrLevel(candidate);
+        if (parsed) return parsed;
+      }
+
+      return { level: 'A1.1', isBiz: false };
+    }
+
 let isConcluding = false;
 
 async function concludePracticeRound() {
@@ -3843,21 +3904,17 @@ async function concludePracticeRound() {
   const totalQs = pract.questions.length;
   const finalScorePct = Math.round((pract.score / totalQs) * 100);
 
-  let currentFullLevel = appState.user.level.toUpperCase();
   let remarkMsg = "คงระดับเดิมไว้เพื่อเรียนต่อ";
   let toastStatus = "info";
 
-  const cefrOrderSub = [
-    "A1.1", "A1.2", "A2.1", "A2.2", 
-    "B1.1", "B1.2", "B2.1", "B2.2", 
-    "C1.1", "C1.2", "C2.1", "C2.2"
-  ];
-  
-  const isBizSuffix = currentFullLevel.includes('-BIZ');
-  const baseLevelClean = currentFullLevel.replace('-BIZ', '').trim();
-  
+  const cefrOrderSub = CEFR_SUB_LEVELS;
+
+  const resolvedCurrentLevel = await resolveCurrentLevelForUpdate();
+  const baseLevelClean = resolvedCurrentLevel.level;
+  const isBizSuffix = resolvedCurrentLevel.isBiz;
+
   let currentIdx = cefrOrderSub.indexOf(baseLevelClean);
-  if (currentIdx === -1) currentIdx = 0; 
+  if (currentIdx === -1) currentIdx = 0;
   const oldIdx = currentIdx;
 
   if (finalScorePct < 50) {
@@ -3880,6 +3937,7 @@ async function concludePracticeRound() {
   const updatedLevel = cefrOrderSub[currentIdx] + (isBizSuffix ? "-BIZ" : "");
   
   appState.user.level = updatedLevel;
+  appState.user.latestLevel = updatedLevel;
   localStorage.setItem('cefr_user_session', JSON.stringify(appState.user));
 
   const dashBadge = document.getElementById('dash-cefr-badge');
@@ -5248,7 +5306,7 @@ function ensureModule4Panel() {
               'C2.1': 11, 'C2.2': 12, 'C2': 12
           };
 
-          let currentUserLevel = 'A1.1';
+          let currentUserLevel = '';
           let highlightQuestions = [];
           let currentQuestionIndex = 0;
           let currentQuestion = {};
@@ -5269,6 +5327,24 @@ function ensureModule4Panel() {
               return 'DEMO123';
           }
 
+          // ดึงระดับล่าสุดของรหัสผู้เรียนจากแถบ progress (ไม่พึ่งค่า A1.1 ที่ hardcode ไว้)
+          async function syncCurrentUserLevel() {
+              let resolved = null;
+              if (typeof resolveCurrentLevelForUpdate === 'function') {
+                  resolved = await resolveCurrentLevelForUpdate();
+              }
+              if (!resolved) {
+                  const fallbackRaw = (typeof appState !== 'undefined' && appState.user && appState.user.level)
+                      ? appState.user.level : currentUserLevel;
+                  resolved = (typeof parseCefrLevel === 'function')
+                      ? parseCefrLevel(fallbackRaw)
+                      : { level: fallbackRaw, isBiz: false };
+              }
+              if (!resolved) return currentUserLevel;
+              currentUserLevel = resolved.level + (resolved.isBiz ? '-BIZ' : '');
+              return currentUserLevel;
+          }
+
           // ฟังก์ชันเริ่มการทำงานของหมวดที่ 4 (เรียกเมื่อเปิดหน้านี้)
          function initModule4() {
           ensureModule4Panel();
@@ -5284,6 +5360,9 @@ function ensureModule4Panel() {
 
               if (typeof appState !== 'undefined' && appState.user && appState.user.level) {
                   currentUserLevel = appState.user.level;
+              }
+              if (typeof syncCurrentUserLevel === 'function') {
+                  syncCurrentUserLevel().catch(() => {});
               }
 
               // มีข้อสอบในแคชแล้ว → ขึ้นโจทย์ทันทีไม่ต้องดึงจากคลาวด์ซ้ำ (กันค้างเมื่อกลับมาเข้าหมวดที่ 4)
@@ -5330,10 +5409,12 @@ function ensureModule4Panel() {
                           return code.toLowerCase() === userCode.toLowerCase() && lvl !== '' && lvl !== 'NA';
                       });
 
-                      if (userLogs.length > 0) {
-                          const lastLog = userLogs[userLogs.length - 1];
-                          return String(lastLog['ระดับที่ทำได้'] || lastLog.level || 'A1.1').trim().toUpperCase();
-                      }
+                  if (userLogs.length > 0) {
+                      const lastLog = userLogs[userLogs.length - 1];
+                      const rawLevel = String(lastLog['ระดับที่ทำได้'] || lastLog.level || lastLog.cefr || '').trim();
+                      const parsedLevel = (typeof parseCefrLevel === 'function') ? parseCefrLevel(rawLevel) : null;
+                      if (parsedLevel) return parsedLevel.level + (parsedLevel.isBiz ? '-BIZ' : '');
+                  }
                   }
               } catch (err) {
                   console.warn('ไม่สามารถดึงระดับผู้เรียนได้ ใช้ระดับพื้นฐาน:', err);
@@ -5688,8 +5769,15 @@ async function fetchHighlightQuestionsWithRetry(url, retries = 3, delay = 1000, 
               
               const currentScore = (typeof mod4Score !== 'undefined') ? mod4Score : 0;
               const scoreFormatted = `${currentScore}/${totalAttempted}`;
-              const userLevel = (typeof currentUserLevel !== 'undefined' && currentUserLevel) ? currentUserLevel : '-';
-                
+              let userLevel = '-';
+              if (typeof syncCurrentUserLevel === 'function') {
+                  const syncedLevel = await syncCurrentUserLevel();
+                  if (syncedLevel) userLevel = syncedLevel;
+              }
+              if (userLevel === '-' && typeof currentUserLevel !== 'undefined' && currentUserLevel) {
+                  userLevel = currentUserLevel;
+              }
+              
 
               let userCode = '-';
               if (typeof getCurrentUserCode === 'function') {
@@ -8774,13 +8862,21 @@ function startModule5() {
 
   const levelEl = document.getElementById('m5-user-level');
   if (levelEl) {
-    const lvl = (typeof currentUserLevel !== 'undefined' && currentUserLevel) ? currentUserLevel
-              : (appState && appState.user && appState.user.level ? appState.user.level : '-');
-    levelEl.innerText = lvl;
+    const fastLevel = (typeof appState !== 'undefined' && appState.user && appState.user.level)
+      ? appState.user.level
+      : ((typeof currentUserLevel !== 'undefined' && currentUserLevel) ? currentUserLevel : '-');
+    levelEl.innerText = fastLevel;
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
   module5StartRound();
+
+  if (typeof syncCurrentUserLevel === 'function') {
+    syncCurrentUserLevel().then(latestLevel => {
+      const el = document.getElementById('m5-user-level');
+      if (el && latestLevel) el.innerText = latestLevel;
+    }).catch(() => {});
+  }
 }
 
 function module5StartRound() {
@@ -8914,9 +9010,14 @@ async function module5SaveToGAS(totalAttempted) {
     const userCode = (typeof getCurrentUserCode === 'function')
       ? getCurrentUserCode()
       : (typeof currentUserCode !== 'undefined' ? currentUserCode : '-');
-    const userLevel = (typeof currentUserLevel !== 'undefined' && currentUserLevel)
-      ? currentUserLevel
-      : (appState && appState.user && appState.user.level ? appState.user.level : '-');
+    let userLevel = '-';
+    if (typeof syncCurrentUserLevel === 'function') {
+      const syncedLevel = await syncCurrentUserLevel();
+      if (syncedLevel) userLevel = syncedLevel;
+    }
+    if (userLevel === '-' && typeof currentUserLevel !== 'undefined' && currentUserLevel) {
+      userLevel = currentUserLevel;
+    }
 
     const payload = {
       action: "saveProgress",
