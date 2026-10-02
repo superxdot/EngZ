@@ -2355,6 +2355,7 @@ async function handleLogout() {
 
         const speechTargetBox = document.createElement('div');
         speechTargetBox.className = "w-full p-6 bg-purple-50 border-2 border-purple-200 rounded-2xl text-center text-lg sm:text-xl md:text-2xl font-semibold text-purple-955 leading-relaxed shadow-md break-words";
+        speechTargetBox.id = "speech-target-box";
         speechTargetBox.innerText = `"${targetSpeech}"`;
         speakSection.appendChild(speechTargetBox);
 
@@ -2798,6 +2799,7 @@ async function handleLogout() {
     }
 
     const SPEECH_MIC_NOTICE = "เนื่องด้วยระบบพบปัญหาไมโครโฟน ขอให้ผู้ฝึกใช้วิธีคลิกฟัง แล้วพิมพ์ข้อความแทน";
+    const SPEECH_MIC_INSTRUCTION = "ให้กดฟังตัวอย่างของประโยค เพื่อฟังเสียงของประโยค แล้วพิมพ์สิ่งที่ได้ยินทั้งหมดในช่องคำตอบ , คลิกตรวจสอบ";
 
     function isMicUsable() {
       if (!SpeechRecognition) return false;
@@ -2816,6 +2818,10 @@ async function handleLogout() {
       }
       if (translationBox) {
         translationBox.innerText = SPEECH_MIC_NOTICE;
+      }
+      const targetBox = document.getElementById('speech-target-box');
+      if (targetBox) {
+        targetBox.innerText = SPEECH_MIC_INSTRUCTION;
       }
       if (fbBox) {
         fbBox.classList.remove('hidden');
