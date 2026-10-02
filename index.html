@@ -2380,6 +2380,12 @@ async function handleLogout() {
         micStatus.innerText = "คลิกปุ่มบันทึกเสียง เพื่อเริ่มต้นออกเสียงตอบโต้";
         micBox.appendChild(micStatus);
 
+        const typeInsteadBtn = document.createElement('button');
+        typeInsteadBtn.className = "text-[11px] font-bold text-purple-600 hover:text-purple-900 underline cursor-pointer";
+        typeInsteadBtn.innerText = "พิมพ์คำตอบแทนการพูด";
+        typeInsteadBtn.onclick = () => showSpeechTypingFallback("📝 พิมพ์ประโยคที่คุณพูด แล้วกดส่งคำตอบ");
+        micBox.appendChild(typeInsteadBtn);
+
         speakSection.appendChild(micBox);
 
         /* ช่องพิมพ์สำรอง สำหรับบราวเซอร์ที่ไม่รองรับ Web Speech API เช่น Firefox */
@@ -2720,6 +2726,9 @@ async function handleLogout() {
         currentUtterance.onend = () => { if (wave) wave.classList.add('hidden'); };
         currentUtterance.onerror = () => { if (wave) wave.classList.add('hidden'); };
 
+        let speechStarted = false;
+        currentUtterance.onstart = () => { speechStarted = true; };
+
         synth.speak(currentUtterance);
              
          // 5. ปลุกระบบซ้ำอีกรอบสำหรับ iOS Safari
@@ -2728,6 +2737,16 @@ async function handleLogout() {
         synth.resume();
       }
     }, 100);
+
+        // Watchdog: Chrome on some builds swallows the first utterance right after cancel()
+        setTimeout(() => {
+          if (speechStarted || !synth) return;
+          try {
+            synth.cancel();
+            synth.resume();
+            synth.speak(currentUtterance);
+          } catch (e) {}
+        }, 600);
 
 
       } catch (err) {}
@@ -2763,83 +2782,133 @@ async function handleLogout() {
       }
     } catch (e) {}
 
-    function startSpeechRecognition(targetText) {
+    const MIC_IDLE_CLASS = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition active:scale-95 cursor-pointer";
+    const MIC_LISTENING_CLASS = "w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg transition animate-pulse cursor-pointer";
+
+    let activeRecognition = null;
+    let isListening = false;
+
+    function resetMicButton() {
       const micBtn = document.getElementById('mic-record-btn');
+      if (micBtn) micBtn.className = MIC_IDLE_CLASS;
+      isListening = false;
+    }
+
+    function showSpeechTypingFallback(statusText) {
       const micStatus = document.getElementById('mic-status-txt');
-      const micBox = micBtn ? micBtn.closest('div') : null;
       const fbBox = document.getElementById('speech-fallback-box');
       const fbInput = document.getElementById('speech-fallback-input');
 
+      if (micStatus) {
+        micStatus.innerText = statusText || "📝 พิมพ์ประโยคที่คุณพูด แล้วกดส่งคำตอบ";
+      }
+      if (fbBox) {
+        fbBox.classList.remove('hidden');
+        fbBox.classList.add('flex');
+      }
+      if (fbInput) {
+        fbInput.placeholder = "พิมพ์ประโยคที่คุณพูด แล้วกดส่งคำตอบ";
+        try { fbInput.focus({ preventScroll: true }); } catch (e) { try { fbInput.focus(); } catch (e2) {} }
+      }
+    }
+
+    function stopSpeechRecognition() {
+      const current = activeRecognition;
+      activeRecognition = null;
+      if (current) {
+        try { current.onend = null; current.stop(); } catch (e) {}
+      }
+      resetMicButton();
+    }
+
+    function startSpeechRecognition(targetText) {
+      const micStatus = document.getElementById('mic-status-txt');
+
+      // 1) เบราว์เซอร์ไม่มี Web Speech API (เช่น Firefox)
       if (!SpeechRecognition) {
-        // Firefox และบราวเซอร์อื่นๆ ที่ไม่รองรับ Web Speech API:
-        // แสดงช่องพิมพ์ประโยคในหน้าแทน ปุ่มไมโครโฟนจะถูกซ่อนไว้ชั่วคราว
-        if (micBox) micBox.classList.add('hidden');
-        if (fbBox) {
-          fbBox.classList.remove('hidden');
-          fbBox.classList.add('flex');
-          if (fbInput) setTimeout(() => fbInput.focus(), 100);
-        }
-        if (micStatus) micStatus.innerText = "📝 บราวเซอร์นี้ไม่รองรับไมโครโฟนอัตโนมัติ ใช้พิมพ์เลียนแบบแทน";
+        showSpeechTypingFallback("📝 บราวเซอร์นี้ไม่รองรับการพูดอัตโนมัติ พิมพ์คำตอบแทนได้เลย");
         return;
       }
 
-      // ปรับปรุงเรื่องการกระตุ้นและตรวจสอบสิทธิ์ไมโครโฟนล่วงหน้า (Permission Prompt Trigger)
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then((stream) => {
-            // ปิด track ทันทีเพื่อปล่อยสิทธิ์คืนระบบเมื่อตรวจสอบผ่านแล้ว
-            stream.getTracks().forEach(track => track.stop());
-            proceedRecognition();
-          })
-          .catch((err) => {
-            console.error("Microphone access denied:", err);
-            alertToast("❌ ไม่ได้รับสิทธิ์เข้าใช้งานไมโครโฟน กรุณาเปิดสิทธิ์ที่บราวเซอร์ของคุณ", "error");
-            if (micStatus) micStatus.innerText = "❌ กรุณาตั้งค่าอนุมัติให้ระบบใช้งานไมโครโฟน";
-          });
-      } else {
-        proceedRecognition();
+      // 2) เว็บไซต์ไม่ได้เข้ารหัส HTTPS -> Chrome จะใช้ไมโครโฟนไม่ได้
+      if (typeof window !== 'undefined' && window.isSecureContext === false) {
+        showSpeechTypingFallback("⚠️ เว็บไซต์นี้ไม่ได้เข้ารหัส HTTPS จึงใช้ไมโครโฟนไม่ได้ — พิมพ์คำตอบแทนได้เลย");
+        return;
       }
 
-      function proceedRecognition() {
-        try {
-          const recognition = new SpeechRecognition();
-          recognition.lang = 'en-US';
-          recognition.interimResults = false;
-          recognition.continuous = false;
-          recognition.maxAlternatives = 1;
+      // 3) กดซ้ำเพื่อหยุดฟัง
+      if (isListening) {
+        stopSpeechRecognition();
+        if (micStatus) micStatus.innerText = "⏹️ หยุดฟังแล้ว กดไมโครโฟนเพื่อพูดอีกครั้ง";
+        return;
+      }
 
-          micBtn.className = "w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg transition animate-pulse cursor-pointer";
-          if (micStatus) micStatus.innerText = "🎙️ กำลังฟังสำเนียงเสียงพูดของคุณ...";
+      // 4) ต้องเรียก start() โดยตรงจากการกดของผู้ใช้ (user gesture) ห้ามรอ Promise เด็ดขาด
+      //    เพราะ Chrome บางเวอร์ชันจะเริ่มฟังไม่ได้เมื่อหลุดจาก user gesture
+      let recognition;
+      try {
+        recognition = new SpeechRecognition();
+      } catch (err) {
+        console.error('create SpeechRecognition failed', err);
+        resetMicButton();
+        showSpeechTypingFallback("📝 เปิดการพูดอัตโนมัติไม่สำเร็จ พิมพ์คำตอบแทนได้เลย");
+        return;
+      }
 
-          recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            handleSpeechResult(transcript, targetText);
-          };
+      recognition.lang = 'en-US';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
 
-          recognition.onerror = (e) => {
-            console.error("Speech recognition error", e);
-            micBtn.className = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition cursor-pointer";
-            if (micStatus) micStatus.innerText = "❌ ตรวจจับล้มเหลว กรุณากดพูดใหม่อีกครั้ง";
-          };
+      recognition.onstart = () => {
+        const micBtn = document.getElementById('mic-record-btn');
+        if (micBtn) micBtn.className = MIC_LISTENING_CLASS;
+        isListening = true;
+        if (micStatus) micStatus.innerText = "🎙️ กำลังฟัง... พูดประโยคให้จบ กดหยุดได้ทันที";
+      };
 
-          recognition.onend = () => {
-            micBtn.className = "w-16 h-16 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition cursor-pointer";
-          };
+      recognition.onresult = (event) => {
+        const results = event.results;
+        if (!results || results.length === 0) return;
+        const lastResult = results[results.length - 1];
+        if (!lastResult || !lastResult[0]) return;
+        const transcript = String(lastResult[0].transcript || '').trim();
+        if (!transcript) return;
 
-          recognition.start();
-        } catch (err) {
-          // กรณี SpeechRecognition มีอยู่แต่ใช้ไม่ได้ (error ตอน runtime)
-          const fbBox = document.getElementById('speech-fallback-box');
-          const fbInput = document.getElementById('speech-fallback-input');
-          const micBox = micBtn.closest('div');
-          if (micBox) micBox.classList.add('hidden');
-          if (fbBox) {
-            fbBox.classList.remove('hidden');
-            fbBox.classList.add('flex');
-            if (fbInput) setTimeout(() => fbInput.focus(), 100);
-          }
-          if (micStatus) micStatus.innerText = "📝 บราวเซอร์นี้ไม่รองรับไมโครโฟนอัตโนมัติ ใช้พิมพ์เลียนแบบแทน";
+        if (lastResult.isFinal) {
+          handleSpeechResult(transcript, targetText);
+        } else if (micStatus) {
+          micStatus.innerText = `🎙️ กำลังฟัง: "${transcript}"`;
         }
+      };
+
+      recognition.onerror = (e) => {
+        resetMicButton();
+        const code = (e && e.error) ? e.error : 'unknown';
+        if (code === 'not-allowed' || code === 'service-not-allowed') {
+          showSpeechTypingFallback("❌ เบราว์เซอร์ไม่อนุญาตให้ใช้ไมโครโฟน — พิมพ์คำตอบแทนได้เลย");
+        } else if (code === 'audio-capture') {
+          showSpeechTypingFallback("❌ ไม่พบไมโครโฟน — ต่อไมโครโฟนแล้วลองใหม่ หรือพิมพ์คำตอบแทน");
+        } else if (code === 'no-speech') {
+          if (micStatus) micStatus.innerText = "🎙️ ไม่ได้ยินเสียง กรุณากดไมโครโฟนแล้วพูดอีกครั้ง";
+        } else {
+          console.error('Speech recognition error', code, e);
+          showSpeechTypingFallback("❌ ตรวจจับเสียงพูดไม่สำเร็จ — พิมพ์คำตอบแทนได้เลย");
+        }
+      };
+
+      recognition.onend = () => {
+        activeRecognition = null;
+        resetMicButton();
+      };
+
+      try {
+        recognition.start();
+        activeRecognition = recognition;
+      } catch (err) {
+        console.error('recognition.start() failed', err);
+        resetMicButton();
+        showSpeechTypingFallback("❌ เปิดการฟังไม่สำเร็จ — พิมพ์คำตอบแทนได้เลย");
       }
     }
 
